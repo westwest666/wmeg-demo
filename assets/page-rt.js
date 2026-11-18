@@ -49,7 +49,7 @@
         padding: [3, 26, 3, 24], yFormat: (v) => U.fmt(v, 1), yMin: 0, yMax: 4,
         series: [{ label: "Rt", color: "#8E44C7", width: 1.0, opacity: .9, data: D.rt.v.map((r) => r[ci]) }],
         hlines: [{ v: 1, color: "#C2185B", opacity: .4 }] }), 10);
-      cell.onclick = () => { location.href = "city.html?city=" + encodeURIComponent(city); };
+      cell.onclick = () => { window.WMEG.go("city", { city: city }); };
       grid.appendChild(cell);
     });
 

@@ -248,7 +248,7 @@
       c1.bd.appendChild(kv);
       const btn = U.el("button", "btn block primary", "进入城市剖析 →");
       btn.style.marginTop = "8px";
-      btn.onclick = () => { location.href = "city.html?city=" + encodeURIComponent(sel); };
+      btn.onclick = () => { window.WMEG.go("city", { city: sel }); };
       c1.bd.appendChild(btn);
       const cbox = U.el("div"); cbox.style.height = "88px";
       c1.bd.appendChild(cbox);

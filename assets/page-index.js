@@ -90,7 +90,7 @@
                  { label: "预测", color: "#0E7C86", width: 1.4, data: f }],
         splitRanges: splitRanges(D), yFormat: (v) => CH.fmt(v, 0)
       }), 10);
-      cell.onclick = (e) => { if (e.shiftKey || e.ctrlKey) { openCity(city, y, f); } else { location.href = "city.html?city=" + encodeURIComponent(city); } };
+      cell.onclick = (e) => { if (e.shiftKey || e.ctrlKey) { openCity(city, y, f); } else { window.WMEG.go("city", { city: city }); } };
       grid.appendChild(cell);
     });
     function openCity(city, y, f) {
@@ -108,7 +108,7 @@
     new CH.Bars(r0box, {
       data: r0list.map((z) => ({ k: z.city, v: z.r0 || 0 })), labelW: 40,
       fmt: (v) => U.fmt(v, 2), color: "#C2185B", height: Math.max(120, r0list.length * 19),
-      onClick: (d) => { location.href = "city.html?city=" + encodeURIComponent(d.k); }
+      onClick: (d) => { window.WMEG.go("city", { city: d.k }); }
     });
     const r0note = U.el("div", "tiny", "R<sub>0</sub> = 流行季内「7 日平滑 R<sub>t</sub>」再做 14 日平均后的峰值（Cori 估计，峰值传播强度上界）；全省 R<sub>0</sub>=" + U.fmt(D.r0.prov, 2) + "（各季中位数）");
     r0note.style.marginTop = "4px";

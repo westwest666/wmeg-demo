@@ -26,7 +26,7 @@
 
   window.WMEG.register("city", function (main, rail, ctx) {
     const D = ctx.D, U2 = U;
-    const qs = new URLSearchParams(location.search);
+    const qs = ctx.params || new URLSearchParams();
     let city = qs.get("city") || ctx.STORE.city;
     if (D.cities.indexOf(city) < 0) city = D.cities[0];
     ctx.STORE.city = city;
@@ -275,7 +275,7 @@
           city = c; ctx.STORE.city = c;
           Array.from(list.children).forEach((z) => z.classList.remove("on"));
           row.classList.add("on");
-          history.replaceState(null, "", "city.html?city=" + encodeURIComponent(c));
+          window.WMEG.setParam("city", c);
           c1.hd.querySelector("h3").textContent = c + "市 · 拟合与预测";
           chart.setData(D.dates, buildSeries());
           renderRail();

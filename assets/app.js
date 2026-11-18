@@ -1,9 +1,10 @@
 /* ===========================================================
-   WMEG-Net 站点外壳：顶栏 / 左侧控制台 / 路由 / 轮次切换 / 组件
+   WMEG-Net 单页应用外壳：一次加载，左侧栏切换视图（不跳页）
+   - 地址栏用 hash 路由：#/city?city=太原&run=run_full_1525
+   - 切视图时统一清理图表（ResizeObserver）与左栏控制台
    =========================================================== */
 (function (global) {
   window.addEventListener("error", function (e) {
-    // ResizeObserver 的良性警告不弹提示
     if (String(e.message || "").indexOf("ResizeObserver loop") >= 0) { e.preventDefault(); return; }
     var el = document.createElement("div");
     el.style.cssText = "position:fixed;left:16px;bottom:16px;z-index:999;max-width:70vw;padding:10px 14px;" +
@@ -16,15 +17,25 @@
   if (!BASE) { document.body.innerHTML = "<div class='empty'>缺少数据：请先运行 python pipeline\\site_build.py</div>"; return; }
 
   const PAGES = [
-    { id: "index", file: "index.html", label: "全省总览", icon: "M3 17l5-6 4 4 5-7 4 5" },
-    { id: "map", file: "map.html", label: "时空传播", icon: "M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3z" },
-    { id: "city", file: "city.html", label: "城市剖析", icon: "M4 20V9l8-5 8 5v11M9 20v-6h6v6" },
-    { id: "rt", file: "rt.html", label: "再生数 Rt", icon: "M3 12h3l2-6 3 12 3-9 2 3h5" },
-    { id: "model", file: "model.html", label: "模型诊断", icon: "M4 19V5m0 14h16M8 15l3-5 3 3 4-7" },
-    { id: "data", file: "data.html", label: "数据与滑窗", icon: "M4 6c0-1.7 3.6-3 8-3s8 1.3 8 3-3.6 3-8 3-8-1.3-8-3zm0 0v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6" },
-    { id: "mig", file: "mig.html", label: "迁徙流", icon: "M4 12h11m0 0l-4-4m4 4l-4 4M19 5v14" },
-    { id: "manual", file: "manual.html", label: "使用说明", icon: "M4 5a2 2 0 012-2h12v18H6a2 2 0 01-2-2zm3 3h8M7 12h8M7 16h5" }
+    { id: "index", label: "全省总览", icon: "M3 17l5-6 4 4 5-7 4 5" },
+    { id: "map", label: "时空传播", icon: "M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3z" },
+    { id: "city", label: "城市剖析", icon: "M4 20V9l8-5 8 5v11M9 20v-6h6v6" },
+    { id: "rt", label: "再生数 Rt", icon: "M3 12h3l2-6 3 12 3-9 2 3h5" },
+    { id: "model", label: "模型诊断", icon: "M4 19V5m0 14h16M8 15l3-5 3 3 4-7" },
+    { id: "data", label: "数据与滑窗", icon: "M4 6c0-1.7 3.6-3 8-3s8 1.3 8 3-3.6 3-8 3-8-1.3-8-3zm0 0v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6" },
+    { id: "mig", label: "迁徙流", icon: "M4 12h11m0 0l-4-4m4 4l-4 4M19 5v14" },
+    { id: "manual", label: "使用说明", icon: "M4 5a2 2 0 012-2h12v18H6a2 2 0 01-2-2zm3 3h8M7 12h8M7 16h5" }
   ];
+  const SUB = {
+    index: "全省聚合 · 拟合与预测 · 再生数",
+    map: "地理分布 · 迁徙流 · 时间演化",
+    city: "单城市全指标 · 任意时段 · 图表放大",
+    rt: "R0 / Rt · 模型反演",
+    model: "误差结构 · 观测-预测对照",
+    data: "数据集区间 · 721 切分 · 长度扫描",
+    mig: "数据审计 · 是否进入模型",
+    manual: "全部用法与口径"
+  };
 
   const U = {
     fmt(v, d) { return Chart.fmt(v, d); },
@@ -123,12 +134,49 @@
       citiesFull: STORE.base.citiesFull });
   }
 
-  /* ---------------- 外壳 ---------------- */
+  /* ---------------- hash 路由 ---------------- */
+  function parseHash() {
+    let h = String(location.hash || "").replace(/^#\/?/, "");
+    const i = h.indexOf("?");
+    const view = (i >= 0 ? h.slice(0, i) : h).trim();
+    const params = new URLSearchParams(i >= 0 ? h.slice(i + 1) : "");
+    return { view, params };
+  }
+  function buildHash(view, params) {
+    const p = new URLSearchParams();
+    Object.keys(params || {}).forEach((k) => {
+      const v = params[k];
+      if (v !== null && v !== undefined && v !== "") p.set(k, v);
+    });
+    const q = p.toString();
+    return "#/" + view + (q ? "?" + q : "");
+  }
+  function currentParams() {
+    const { params } = parseHash();
+    const o = {};
+    params.forEach((v, k) => { o[k] = v; });
+    if (STORE.runId !== STORE.base.meta.run_id) o.run = STORE.runId;
+    return o;
+  }
+  function go(view, extra) {
+    const params = Object.assign(currentParams(), extra || {});
+    if (extra && extra.run === null) delete params.run;
+    const h = buildHash(view, params);
+    if (location.hash === h) route();
+    else location.hash = h;
+  }
+  function setParam(k, v) {
+    const params = currentParams();
+    if (v === null || v === undefined || v === "") delete params[k]; else params[k] = v;
+    const { view } = parseHash();
+    history.replaceState(null, "", buildHash(view, params));
+  }
+
+  /* ---------------- 外壳（只渲染一次） ---------------- */
   function iconPath(p) { return "<svg viewBox='0 0 24 24'><path d='" + p + "'/></svg>"; }
 
-  function renderShell(pageId) {
+  function renderShell() {
     const app = document.getElementById("app");
-    const meta = STORE.base.meta;
     app.innerHTML =
       "<div class='top'>" +
       "<div class='brand'><svg width='26' height='26' viewBox='0 0 32 32'>" +
@@ -148,20 +196,18 @@
       "<div class='navlist' id='navlist'></div>" +
       "<div id='consoleWrap'></div>" +
       "<div class='tail'><button class='collapse' id='collapseBtn' title='收起/展开侧栏'>‹</button>" +
-      "<span class='ver' id='verTxt'>v6 · 721</span></div>" +
+      "<span class='ver' id='verTxt'>v7 · SPA</span></div>" +
       "</aside>" +
       "<section class='page' id='page'><div class='main' id='main'></div><div class='rail' id='rail'></div></section>" +
       "</div>";
-    // 导航
     const nav = document.getElementById("navlist");
     PAGES.forEach((p) => {
-      const a = U.el("a", "nav" + (p.id === pageId ? " on" : ""));
-      a.href = p.file + (STORE.runId !== STORE.base.meta.run_id ? "?run=" + encodeURIComponent(STORE.runId) : "");
+      const a = U.el("a", "nav");
+      a.id = "nav_" + p.id;
+      a.href = "#/" + p.id;
       a.innerHTML = iconPath(p.icon) + "<span class='lbl'>" + p.label + "</span>";
-      a.onclick = (e) => { if (window.__dirty) { window.__dirty = false; } };
       nav.appendChild(a);
     });
-    // 轮次下拉
     const sel = document.getElementById("runSel");
     const runs = (STORE.base.runs || []).slice();
     runs.sort((a, b) => (a.window_start < b.window_start ? 1 : -1));
@@ -173,16 +219,15 @@
         (k.nrmse !== undefined && k.nrmse !== null ? " · nRMSE " + k.nrmse.toFixed(3) : "");
       sel.appendChild(o);
     });
-    sel.value = STORE.runId;
     sel.onchange = async () => {
       const id = sel.value;
       const p = await loadRun(id);
       if (!p) { sel.value = STORE.runId; return; }
       STORE.runId = id; STORE.run = p; STORE.loaded = {};
       refreshChips();
-      route(true);
+      setParam("run", id === STORE.base.meta.run_id ? null : id);
+      route();
     };
-    // 收起
     const shell = document.getElementById("shell");
     const btn = document.getElementById("collapseBtn");
     if (localStorage.getItem("wneg.mini") === "1") { shell.classList.add("mini"); btn.textContent = "›"; }
@@ -200,58 +245,92 @@
 
   function refreshChips() {
     const m = STORE.run.meta;
-    document.getElementById("chipWin").innerHTML = "<b>" + m.window_start + "</b> → <b>" + m.window_end + "</b>";
-    document.getElementById("chipSplit").innerHTML = "训练 <b>" + m.train_end + "</b> · 测试 <b>" + m.test_start + "</b>";
+    const win = document.getElementById("chipWin");
+    if (win) win.innerHTML = "<b>" + m.window_start + "</b> → <b>" + m.window_end + "</b>";
+    const sp = document.getElementById("chipSplit");
+    if (sp) sp.innerHTML = "训练 <b>" + m.train_end + "</b> · 测试 <b>" + m.test_start + "</b>";
     const sel = document.getElementById("runSel");
     if (sel) sel.value = STORE.runId;
   }
 
-  /* ---------------- 路由 ---------------- */
-  const pageId = (document.body.getAttribute("data-page") || "index").trim();
-  function route(first) {
-    const main = document.getElementById("main");
-    const rail = document.getElementById("rail");
-    if (!main) return;
-    main.innerHTML = ""; rail.innerHTML = "";
-    const cw = document.getElementById("consoleWrap");
-    if (cw) cw.innerHTML = "";
-    const p = PAGES.find((x) => x.id === pageId);
-    const sub = document.getElementById("pagesub");
-    if (sub && p) sub.textContent = p.label + " · " + (SUB[pageId] || "");
-    const fn = (global.WMEG.pages || {})[pageId];
-    if (fn) {
-      try {
-        fn(main, rail, { console: cw, U, STORE, D: STORE.run });
-      } catch (err) {
-        const box = document.createElement("div");
-        box.className = "card pad";
-        box.innerHTML = "<h3 style='color:#A21B0F;margin:0 0 6px'>本页渲染失败</h3><pre style='white-space:pre-wrap;font-size:11px;color:#A21B0F'>" +
-          (err && err.stack ? err.stack : String(err)) + "</pre>";
-        main.appendChild(box);
+  /* ---------------- 视图切换 ---------------- */
+  let routing = false;
+  async function route() {
+    if (routing) return;
+    routing = true;
+    try {
+      const parsed = parseHash();
+      let vid = PAGES.some((p) => p.id === parsed.view) ? parsed.view : "index";
+      const params = parsed.params;
+      // 轮次：hash 参数优先，其次保持当前
+      const wantRun = params.get("run");
+      if (wantRun && wantRun !== STORE.runId) {
+        const p = await loadRun(wantRun);
+        if (p) { STORE.runId = wantRun; STORE.run = p; refreshChips(); }
       }
+      CH.teardown();
+      const page = document.getElementById("page");
+      const main = document.getElementById("main");
+      const rail = document.getElementById("rail");
+      const cw = document.getElementById("consoleWrap");
+      page.classList.remove("norail");
+      main.className = "main";
+      main.innerHTML = ""; rail.innerHTML = ""; cw.innerHTML = "";
+      main.scrollTop = 0; rail.scrollTop = 0;
+      PAGES.forEach((p) => {
+        const a = document.getElementById("nav_" + p.id);
+        if (a) a.classList.toggle("on", p.id === vid);
+      });
+      const sub = document.getElementById("pagesub");
+      if (sub) sub.textContent = (PAGES.find((p) => p.id === vid) || {}).label + " · " + (SUB[vid] || "");
+      document.title = (PAGES.find((p) => p.id === vid) || {}).label + " · WMEG-Net 山西 ILI";
+      const fn = (global.WMEG.pages || {})[vid];
+      if (!fn) {
+        main.innerHTML = "<div class='empty'>视图 " + vid + " 未注册</div>";
+      } else {
+        try {
+          fn(main, rail, { console: cw, U, STORE, D: STORE.run, params: params, view: vid });
+        } catch (err) {
+          const box = document.createElement("div");
+          box.className = "card pad";
+          box.innerHTML = "<h3 style='color:#A21B0F;margin:0 0 6px'>该视图渲染失败</h3><pre style='white-space:pre-wrap;font-size:11px;color:#A21B0F'>" +
+            (err && err.stack ? err.stack : String(err)) + "</pre>";
+          main.appendChild(box);
+        }
+      }
+      // 让新视图里的图表在布局完成后重算尺寸
+      requestAnimationFrame(() => window.dispatchEvent(new Event("resize")));
+    } finally {
+      routing = false;
     }
   }
-  const SUB = {
-    index: "全省聚合 · 拟合与预测 · 再生数",
-    map: "地理分布 · 迁徙流 · 时间演化",
-    city: "单城市全指标 · 任意时段 · 图表放大",
-    rt: "R0 / Rt · 机理反演",
-    model: "误差结构 · 观测-预测对照",
-    data: "数据集区间 · 721 切分 · 长度扫描",
-    mig: "数据审计 · 是否进入模型",
-    manual: "全部用法与口径"
-  };
+
+  global.WMEG = global.WMEG || {};
+  global.WMEG.go = go;
+  global.WMEG.route = route;
+  global.WMEG.setParam = setParam;
+  global.WMEG.APP = global.APP;
+
+  window.addEventListener("hashchange", route);
 
   document.addEventListener("DOMContentLoaded", async () => {
-    // 深链：?run=<run_id> 直接切到某个已训练区间（便于分享/复核）
+    // 兼容旧链接：index.html?run=xxx → #/index?run=xxx
     const qs = new URLSearchParams(location.search);
-    const want = qs.get("run");
-    if (want && want !== STORE.runId) {
-      const p = await loadRun(want);
-      if (p) { STORE.runId = want; STORE.run = p; }
+    const legacyRun = qs.get("run");
+    let boot = parseHash();
+    if (!boot.view) {
+      const dv = (document.body.getAttribute("data-page") || "index").trim();
+      boot = { view: dv, params: new URLSearchParams(legacyRun ? "run=" + encodeURIComponent(legacyRun) : "") };
+      history.replaceState(null, "", buildHash(boot.view, { run: legacyRun || "" }));
+    } else if (legacyRun && !boot.params.get("run")) {
+      boot.params.set("run", legacyRun);
+      history.replaceState(null, "", buildHash(boot.view, { run: legacyRun }));
     }
-    renderShell(pageId);
-    route(true);
+    if (legacyRun && legacyRun !== STORE.runId) {
+      const p = await loadRun(legacyRun);
+      if (p) { STORE.runId = legacyRun; STORE.run = p; }
+    }
+    renderShell();
+    route();
   });
-  global.WMEG.route = route;
 })(window);

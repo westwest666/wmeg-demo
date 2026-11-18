@@ -47,6 +47,19 @@
     for (let v = lo; v <= hi + step * 1e-6; v += step) out.push(+v.toFixed(10));
     return out;
   }
+  /* 存活图表登记表：单页路由切换时统一断开 ResizeObserver，避免泄漏 */
+  const LIVE = new Set();
+  function track(c) {
+    // 只登记仍在文档里的实例：路由切换后遗留的 setTimeout 建图不会挂进登记表
+    if (!c.host || c.host.isConnected) LIVE.add(c);
+    return c;
+  }
+  function teardown() {
+    LIVE.forEach((c) => { try { c.obs && c.obs.disconnect(); } catch (e) { } });
+    LIVE.clear();
+    const t = document.querySelector(".tipbox");
+    if (t) t.style.opacity = 0;
+  }
   const TIP = (function () {
     let t = null;
     return function () {
@@ -75,7 +88,22 @@
       this.gOver = el("g", {}, this.svg);
       this.obs = new ResizeObserver(() => this.draw());
       this.obs.observe(this.host);
+      this._down = null; this._brush = null;
+      // 窗口级 mouseup 只注册一次（原实现在每次 draw 里注册，重绘会累积监听器）
+      window.addEventListener("mouseup", (ev) => this._onWinUp(ev));
+      track(this);
       this.draw();
+    }
+    _onWinUp(ev) {
+      if (this._down === null || !this.o.brush) return;
+      const up = this._idxAt(ev, true);
+      if (this._brush) this._brush.setAttribute("opacity", 0);
+      if (up !== null && this._brush && Math.abs(up - this._down) > 2) {
+        const lo = Math.min(this._down, up), hi = Math.max(this._down, up);
+        this.setRange(lo, hi);
+        if (this.o.onSelect) this.o.onSelect(lo, hi);
+      }
+      this._down = null;
     }
     setData(dates, series) {
       if (dates) this.o.dates = dates;
@@ -232,28 +260,20 @@
       });
       // 框选
       const br = el("rect", { class: "brush", x: 0, y: y0, width: 0, height: y1 - y0, opacity: 0 }, this.gOver);
-      let down = null;
+      this._brush = br; this._down = null;
       hit.addEventListener("mousedown", (ev) => {
-        down = this._idxAt(ev); br.setAttribute("opacity", 1);
-        br.setAttribute("x", X(down)); br.setAttribute("width", 0);
+        const i = this._idxAt(ev);
+        if (i === null) return;
+        this._down = i;
+        br.setAttribute("opacity", 1);
+        br.setAttribute("x", X(i)); br.setAttribute("width", 0);
         ev.preventDefault();
       });
-      window.addEventListener("mouseup", (ev) => {
-        if (down === null) return;
-        const up = this._idxAt(ev, true);
-        br.setAttribute("opacity", 0);
-        if (up !== null && Math.abs(up - down) > 2 && o.brush) {
-          const lo = Math.min(down, up), hi = Math.max(down, up);
-          this.setRange(lo, hi);
-          if (o.onSelect) o.onSelect(lo, hi);
-        }
-        down = null;
-      });
       hit.addEventListener("mousemove", (ev) => {
-        if (down === null) return;
+        if (this._down === null) return;
         const cur = this._idxAt(ev, true);
         if (cur === null) return;
-        const lo = Math.min(down, cur), hi = Math.max(down, cur);
+        const lo = Math.min(this._down, cur), hi = Math.max(this._down, cur);
         br.setAttribute("x", X(lo)); br.setAttribute("width", Math.max(0, X(hi) - X(lo)));
       });
       hit.addEventListener("dblclick", () => { this.reset(); if (o.onSelect) o.onSelect(0, n - 1); });
@@ -321,6 +341,7 @@
       this.host.classList.add("chart");
       this.svg = el("svg", {}, this.host);
       this.obs = new ResizeObserver(() => this.draw()); this.obs.observe(this.host);
+      track(this);
       this.draw();
     }
     colorAt(t) {
@@ -397,6 +418,7 @@
       this.host.classList.add("chart");
       this.svg = el("svg", {}, this.host);
       this.obs = new ResizeObserver(() => this.draw()); this.obs.observe(this.host);
+      track(this);
       this.draw();
     }
     draw() {
@@ -439,6 +461,7 @@
       this.host.classList.add("chart");
       this.svg = el("svg", {}, this.host);
       this.obs = new ResizeObserver(() => this.draw()); this.obs.observe(this.host);
+      track(this);
       this.draw();
     }
     draw() {
@@ -484,6 +507,7 @@
       "<span>" + (it.dot ? "<i class='dot' style='background:" + it.color + "'></i>"
         : "<i style='background:" + it.color + "'></i>") + it.label + "</span>").join("") + "</div>";
   }
-  global.CH = { LineChart, Heatmap, Bars, Scatter, legend, fmt, TIP, niceTicks, el, h };
+  global.CH = { LineChart, Heatmap, Bars, Scatter, legend, fmt, TIP, niceTicks, el, h, teardown };
+  global.CH._live = LIVE;
   global.Chart = global.CH;   // 兼容别名（app.js 里用 Chart.*）
 })(window);
