@@ -55,7 +55,7 @@
     }
 
     /* ---------- 主图 ---------- */
-    const c1 = U.card(main, (city) + "市 · 拟合与预测", "拖拽框选放大 · 滚轮缩放 · 双击复位", [
+    const c1 = U.card(main, (city) + "市 · 拟合与预测", "实测 / WMEG 预测 / 机理头", [
       { label: U.icon("expand"), title: "放大查看", fn: () => openBig() },
       { label: U.icon("csv"), title: "导出当前区间 CSV", fn: () => exportCsv() },
     ]);
@@ -71,14 +71,19 @@
       chart = new CH.LineChart(box, {
         dates: D.dates, series: buildSeries(), splitRanges: WMEG.splitRanges(D), brush: true, zoom: true,
         padding: [12, 46, 26, 44], xTickN: 10,
-        onSelect: (a, b) => { view = { a, b }; syncRangeLabel(); }
+        onSelect: (a, b) => { view = { a, b }; syncRangeLabel(); if (typeof setActive === "function") setActive(null); }
       });
       chart.setRange(view.a, view.b);
     }, 20);
 
     /* ---------- 区间工具条 ---------- */
-    const bar = U.el("div");
-    bar.style.cssText = "display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding:2px 0 6px;font-size:11.5px;color:var(--tx3)";
+    const bar = U.el("div", "rangebar");
+    bar.appendChild(U.el("span", "seglabel", "区间"));
+    const seg = U.el("div", "seg");
+    bar.appendChild(seg);
+    const right = U.el("div", "rbar-right");
+    bar.appendChild(right);
+
     const presets = [
       ["全部", () => [0, D.dates.length - 1]],
       ["测试段", () => { const a = D.dates.indexOf(D.meta.test_start); return [a < 0 ? 0 : a, D.dates.length - 1]; }],
@@ -89,28 +94,38 @@
         return s ? [D.dates.indexOf(s.start), D.dates.indexOf(s.end)] : [0, D.dates.length - 1];
       }],
     ];
-    presets.forEach(([lab, fn]) => {
-      const b = U.el("button", "btn sm", lab);
-      b.onclick = () => { const [a, b2] = fn(); view = { a, b: b2 }; chart.setRange(a, b2); syncRangeLabel(); };
-      bar.appendChild(b);
+    const segBtns = [];
+    function setActive(btn) {
+      segBtns.forEach((b) => b.classList.toggle("on", b === btn));
+    }
+    presets.forEach(([lab, fn], i) => {
+      const b = U.el("button", "", lab);
+      b.onclick = () => { const p2 = fn(); view = { a: p2[0], b: p2[1] }; chart.setRange(view.a, view.b); syncRangeLabel(); setActive(b); };
+      if (i === 0) b.classList.add("on");
+      segBtns.push(b);
+      seg.appendChild(b);
     });
-    const din = document.createElement("input"); din.type = "date"; din.className = "btn sm"; din.style.padding = "2px 6px";
-    const din2 = document.createElement("input"); din2.type = "date"; din2.className = "btn sm"; din2.style.padding = "2px 6px";
+
+    const din = document.createElement("input"); din.type = "date";
+    const din2 = document.createElement("input"); din2.type = "date";
     const applyBtn = U.el("button", "btn sm primary", "应用");
-    bar.appendChild(din); bar.appendChild(din2); bar.appendChild(applyBtn);
-    const rangeTxt = U.el("span", "", "");
-    bar.appendChild(rangeTxt);
+    right.appendChild(U.el("span", "dlab", "起")); right.appendChild(din);
+    right.appendChild(U.el("span", "dlab", "止")); right.appendChild(din2);
+    right.appendChild(applyBtn);
+    const rangeTxt = U.el("span", "rtxt", "");
+    right.appendChild(rangeTxt);
+
     function syncRangeLabel() {
       din.value = D.dates[view.a] || ""; din2.value = D.dates[view.b] || "";
-      rangeTxt.innerHTML = "当前区间 <b>" + (D.dates[view.a] || "") + " → " + (D.dates[view.b] || "") +
+      rangeTxt.innerHTML = "<b>" + (D.dates[view.a] || "") + "</b> → <b>" + (D.dates[view.b] || "") +
         "</b> · " + (view.b - view.a + 1) + " 天";
-      din.style.color = "var(--tx2)"; din2.style.color = "var(--tx2)";
     }
     applyBtn.onclick = () => {
       const a = D.dates.indexOf(din.value), b = D.dates.indexOf(din2.value);
       if (a < 0 || b < 0 || b <= a) { U.toast("区间无效"); return; }
-      view = { a, b }; chart.setRange(a, b); syncRangeLabel();
+      view = { a, b }; chart.setRange(a, b); syncRangeLabel(); setActive(null);
     };
+    c1.bd.appendChild(bar);
     c1.bd.appendChild(bar);
     function openBig() {
       const bd = U.modal(city + "市 · " + D.dates[view.a] + " → " + D.dates[view.b], () => {});
