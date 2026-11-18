@@ -260,7 +260,8 @@
       this._hover = { hit, hl, dots, x0, x1, y0, y1 };
       hit.addEventListener("mousemove", (ev) => this._move(ev));
       hit.addEventListener("mouseleave", () => {
-        hl.setAttribute("opacity", 0); dots.forEach((d) => d.setAttribute("opacity", 0));
+        hl.setAttribute("opacity", 0);
+        while (dots.length) { const d = dots.pop(); if (d && d.parentNode) d.parentNode.removeChild(d); }
         TIP().style.opacity = 0;
       });
       // 框选
@@ -308,15 +309,23 @@
     }
     _move(ev) {
       const o = this.o, i = this._idxAt(ev);
-      const H = this._hover; if (!H || i === null) return;
+      const H = this._hover; if (!H || i === null) {
+        if (H) {
+          H.hl.setAttribute("opacity", 0);
+          while (H.dots.length) { const d = H.dots.pop(); if (d && d.parentNode) d.parentNode.removeChild(d); }
+        }
+        TIP().style.opacity = 0;
+        return;
+      }
       const x = this._X(i);
       H.hl.setAttribute("x1", x); H.hl.setAttribute("x2", x); H.hl.setAttribute("opacity", 1);
       while (H.dots.length) H.dots.pop().remove();
       let rows = o.series.filter((s) => s.showTip !== false).map((s) => {
         const v = s.data[i];
         if (v !== null && v !== undefined && isFinite(v)) {
-          const c = el("circle", { cx: x, cy: (s.axis === 2 ? this._d.Y2(v) : this._Y(v)), r: 3,
-            fill: "#fff", stroke: s.color, "stroke-width": 2 }, this.svg);
+          // ★ 画到 gOver 里：重绘时 gOver.innerHTML="" 会连带清掉，避免留下"黑点"
+          const c = el("circle", { cx: x, cy: (s.axis === 2 ? this._d.Y2(v) : this._Y(v)), r: 2.6,
+            fill: "#fff", stroke: s.color, "stroke-width": 1.8, "pointer-events": "none" }, this.gOver);
           H.dots.push(c);
         }
         return { label: s.label, color: s.color, v: o.yFormat(v), raw: v };
