@@ -254,9 +254,10 @@
   }
 
   /* ---------------- 视图切换 ---------------- */
-  let routing = false;
+  let routing = false, pending = false;
   async function route() {
-    if (routing) return;
+    // 路由是在途状态时不能直接丢弃新请求，否则快速点两下左侧栏会停在旧视图
+    if (routing) { pending = true; return; }
     routing = true;
     try {
       const parsed = parseHash();
@@ -302,6 +303,7 @@
       requestAnimationFrame(() => window.dispatchEvent(new Event("resize")));
     } finally {
       routing = false;
+      if (pending) { pending = false; setTimeout(route, 0); }
     }
   }
 
