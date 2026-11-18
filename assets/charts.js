@@ -205,9 +205,14 @@
       // ---- X 轴 ----
       if (o.showX) {
         const nt = o.minimal ? 3 : o.xTickN;
+        const spanN = b - a;
+        const fmtX = o.xFormat || ((d) => d ? (spanN < 200 ? d.slice(5, 10) : d.slice(2, 7)) : "");
+        let prev = null;
         for (let k = 0; k <= nt; k++) {
           const i = Math.round(a + (b - a) * k / nt);
-          const lab = o.xFormat ? o.xFormat(o.dates[i], i) : (o.dates[i] || "").slice(2, 7);
+          const lab = fmtX(o.dates[i], i);
+          if (lab === prev) continue;      // 短区间里相邻刻度会落在同一天，去重
+          prev = lab;
           el("text", { x: X(i), y: y1 + 15, "text-anchor": k === 0 ? "start" : (k === nt ? "end" : "middle") },
             this.gAxis).textContent = lab;
         }

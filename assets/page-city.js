@@ -141,7 +141,7 @@
     /* ---------- 下方两图 ---------- */
     const c2 = U.card(main, "分步长误差（1-12 步）", "测试段逐城 RMSE / 相对误差", []);
     c2.card.style.flex = "0 0 auto";
-    const g2 = U.el("div"); g2.style.cssText = "display:grid;grid-template-columns:1fr 1fr;gap:10px";
+    const g2 = U.el("div"); g2.style.cssText = "display:grid;grid-template-columns:1fr 1fr;gap:26px";
     c2.bd.appendChild(g2);
     const h1 = U.el("div"); h1.style.height = "148px";
     const h2 = U.el("div"); h2.style.height = "148px";
@@ -156,10 +156,8 @@
         fmt: (v) => U.pct(v, 0), color: "#0E7C86", height: 148 });
     }, 30);
 
-    const c3 = U.card(main, "月度分布", "该市逐月累计与预测对比（全区间）", []);
-    const h3 = U.el("div"); h3.style.height = "150px";
-    c3.bd.appendChild(h3);
-    setTimeout(() => {
+    /* ---------- 月度分布（放在右栏，省出主区竖向空间） ---------- */
+    function buildMonthly(host) {
       const mon = {};
       for (let i = 0; i < D.dates.length; i++) {
         const k = D.dates[i].slice(0, 7);
@@ -171,25 +169,25 @@
         if (f !== null) mon[k].f += f;
       }
       const keys = Object.keys(mon);
-      // 月度均值（例/日）+ 平方根刻度：避免冬季峰值把整年压成一条线
+      if (!keys.length) return;
       const vals = keys.map((k) => mon[k].y / Math.max(1, mon[k].n));
       const mx = Math.max(0.001, Math.max.apply(null, vals));
       const wrapM = U.el("div");
-      wrapM.style.cssText = "display:flex;gap:2px;align-items:flex-end;height:104px";
+      wrapM.style.cssText = "display:flex;gap:2px;align-items:flex-end;height:86px";
       const g = U.el("div");
-      g.style.cssText = "flex:1;display:flex;gap:2px;align-items:flex-end;height:104px";
+      g.style.cssText = "flex:1;display:flex;gap:2px;align-items:flex-end;height:86px";
       keys.forEach((k, ki) => {
         const col = U.el("div");
         col.style.cssText = "flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;cursor:pointer;height:100%";
-        const h = Math.max(2, Math.sqrt(vals[ki] / mx) * 92);
+        const h = Math.max(2, Math.sqrt(vals[ki] / mx) * 78);
         const bar = U.el("div");
-        bar.style.cssText = "width:100%;max-width:26px;border-radius:2px 2px 0 0;background:linear-gradient(180deg,#57B7BE,#0E7C86);height:" + h + "px";
+        bar.style.cssText = "width:100%;border-radius:2px 2px 0 0;background:linear-gradient(180deg,#57B7BE,#0E7C86);height:" + h + "px";
         bar.title = k + " · 日均实测 " + U.fmt(vals[ki], 1) + " · 预测 " + U.fmt(mon[k].f / Math.max(1, mon[k].n), 1);
         col.appendChild(bar);
         col.onclick = () => {
           const a = D.dates.findIndex((d) => d.slice(0, 7) === k);
           let b = a; while (b + 1 < D.dates.length && D.dates[b + 1].slice(0, 7) === k) b++;
-          if (a >= 0) { view = { a, b }; chart.setRange(view.a, view.b); syncRangeLabel(); }
+          if (a >= 0) { view = { a, b }; chart.setRange(view.a, view.b); syncRangeLabel(); renderRail(); }
         };
         g.appendChild(col);
       });
@@ -197,70 +195,73 @@
       xlab.style.cssText = "display:flex;justify-content:space-between;font-size:9.5px;color:#8496A6;margin-top:3px";
       xlab.innerHTML = "<span>" + (keys[0] || "") + "</span><span>" + (keys[Math.floor(keys.length / 2)] || "") + "</span><span>" + (keys[keys.length - 1] || "") + "</span>";
       wrapM.appendChild(g);
-      c3.bd.appendChild(wrapM);
-      c3.bd.appendChild(xlab);
-      c3.bd.appendChild(U.el("div", "tiny", "柱高为月度日均（平方根刻度），点击柱切换主图区间。"));
-    }, 30);
+      host.appendChild(wrapM);
+      host.appendChild(xlab);
+    }
 
-    /* ---------- 右栏 ---------- */
-    const r1 = U.card(rail, city + "市 · 分段指标", "");
-    const r1b = U.el("div");
-    r1.bd.appendChild(r1b);
+    /* ---------- 右栏（窄栏友好：两行式指标，不再用宽表格） ---------- */
+    const r1 = U.card(rail, city + "市 · 分段指标", "RMSE · nRMSE · PCC");
     const r2 = U.card(rail, "峰值与再生数", "");
-    r2.bd.appendChild(U.el("div", "", ""));
-    const r3 = U.card(rail, "数据覆盖", "");
-    r3.bd.appendChild(U.el("div", "", ""));
+    const r3 = U.card(rail, "月度分布", "日均病例，点击柱切换主图区间");
+    const r4 = U.card(rail, "数据覆盖", "");
+
+    function statLine(s) {
+      if (!s || !s.n) return "—";
+      return "<b>" + U.fmt(s.rmse, 2) + "</b> · " + U.pct(s.nrmse, 1) + " · " + U.fmt(s.pcc, 3);
+    }
+    function kvLine(k, v) {
+      return "<div class='kv'><span>" + k + "</span><span>" + v + "</span></div>";
+    }
 
     function renderRail() {
-      r1b.innerHTML = "";
-      const rows = [[0, "训练段（拟合）"], [1, "验证段"], [2, "测试段（样本外）"]];
-      let tbl = "<table class='t'><thead><tr><th>分段</th><th>RMSE</th><th>nRMSE</th><th>PCC</th><th>R²</th></tr></thead><tbody>";
-      rows.forEach(([code, lab]) => {
-        const { y, f } = inRange(0, D.dates.length - 1, code);
-        const s = stats(y, f);
-        tbl += "<tr><td>" + lab + "</td><td>" + U.fmt(s.rmse, 2) + "</td><td>" + U.pct(s.nrmse, 1) +
-          "</td><td>" + U.fmt(s.pcc, 3) + "</td><td>" + U.fmt(s.r2, 3) + "</td></tr>";
-      });
+      // 1) 分段指标
       const all = stats(yArr(), fArr());
-      tbl += "<tr style='background:#F7FAFC'><td><b>全区间</b></td><td><b>" + U.fmt(all.rmse, 2) +
-        "</b></td><td><b>" + U.pct(all.nrmse, 1) + "</b></td><td><b>" + U.fmt(all.pcc, 3) +
-        "</b></td><td><b>" + U.fmt(all.r2, 3) + "</b></td></tr></tbody></table>";
-      r1b.innerHTML = tbl;
+      let h = "";
+      [[0, "训练（拟合）"], [1, "验证"], [2, "测试（样本外）"]].forEach((pair) => {
+        const sub = inRange(0, D.dates.length - 1, pair[0]);
+        h += kvLine(pair[1], statLine(stats(sub.y, sub.f)));
+      });
+      h += kvLine("<b>全区间</b>", statLine(all));
       const cur = stats(yArr().slice(view.a, view.b + 1), fArr().slice(view.a, view.b + 1));
-      const curDiv = U.el("div");
-      curDiv.style.marginTop = "8px";
-      curDiv.innerHTML = "<div class='kv'><span>当前区间 RMSE</span><span>" + U.fmt(cur.rmse, 2) + "</span></div>" +
-        "<div class='kv'><span>当前区间 MAE</span><span>" + U.fmt(cur.mae, 2) + "</span></div>" +
-        "<div class='kv'><span>当前区间 nRMSE</span><span>" + U.pct(cur.nrmse, 1) + "</span></div>" +
-        "<div class='kv'><span>当前区间 PCC</span><span>" + U.fmt(cur.pcc, 3) + "</span></div>";
-      r1b.appendChild(curDiv);
+      h += "<div class='divider'></div>";
+      h += kvLine("当前区间 RMSE", U.fmt(cur.rmse, 2));
+      h += kvLine("当前区间 MAE", U.fmt(cur.mae, 2));
+      h += kvLine("当前区间 nRMSE", U.pct(cur.nrmse, 1));
+      h += kvLine("当前区间 PCC", U.fmt(cur.pcc, 3));
+      r1.bd.innerHTML = h;
 
-      const r2b = r2.bd.firstChild;
+      // 2) 峰值与再生数
       const r0c = (D.r0.city.find((z) => z.city === city) || {});
-      const rtNow = (function () { for (let i = D.dates.length - 1; i >= 0; i--) { const v = D.rt.v[i][ci()]; if (v !== null) return v; } return null; })();
+      let rtNow = null;
+      for (let i = D.dates.length - 1; i >= 0; i--) { const v = D.rt.v[i][ci()]; if (v !== null) { rtNow = v; break; } }
       let peakI = 0, peakV = -1;
       yArr().forEach((v, i) => { if (v !== null && v > peakV) { peakV = v; peakI = i; } });
-      r2b.innerHTML = [
+      r2.bd.innerHTML = [
         ["基本再生数 R0", U.fmt(r0c.r0, 2)],
         ["当前 Rt", U.fmt(rtNow, 2)],
         ["Rt 中位数", U.fmt(r0c.rt_med, 2)],
         ["实测峰值", U.fmt(peakV, 1) + " 例"],
         ["峰值日期", D.dates[peakI]],
-      ].map((kv) => "<div class='kv'><span>" + kv[0] + "</span><span>" + kv[1] + "</span></div>").join("");
-      const rtBox = U.el("div"); rtBox.style.height = "90px"; r2.bd.appendChild(rtBox);
-      new CH.LineChart(rtBox, { dates: D.dates, minimal: true, showX: false, padding: [4, 30, 4, 26],
-        series: [{ label: "Rt", color: "#8E44C7", width: 1.3, data: rArr() }], yFormat: (v) => U.fmt(v, 1),
-        hlines: [{ v: 1, color: "#C2185B", opacity: .5 }] });
+      ].map((kv) => kvLine(kv[0], kv[1])).join("") + "<div class='rtmini' style='height:84px;margin-top:6px'></div>";
+      new CH.LineChart(r2.bd.querySelector(".rtmini"), { dates: D.dates, minimal: true, showX: false,
+        padding: [4, 30, 4, 26], series: [{ label: "Rt", color: "#8E44C7", width: 1.3, data: rArr() }],
+        yFormat: (v) => U.fmt(v, 1), hlines: [{ v: 1, color: "#C2185B", opacity: .5 }] });
 
+      // 3) 月度分布
+      r3.bd.innerHTML = "";
+      buildMonthly(r3.bd);
+
+      // 4) 数据覆盖
       const prof = (D.profile || {}).cases || {};
       const pc = (prof.per_city || []).find((z) => z.city === city) || {};
-      r3.bd.firstChild.innerHTML = [
+      r4.bd.innerHTML = [
         ["有效天数", (pc.days || "—") + " 天"],
         ["累计（平滑）", U.fmt(pc.sum, 0) + " 例"],
         ["日均", U.fmt(pc.mean, 2) + " 例"],
         ["峰值", U.fmt(pc.max, 1) + " 例"],
-      ].map((kv) => "<div class='kv'><span>" + kv[0] + "</span><span>" + kv[1] + "</span></div>").join("");
+      ].map((kv) => kvLine(kv[0], kv[1])).join("");
     }
+
 
     /* ---------- 左控制台 ---------- */
     if (ctx.console) {
