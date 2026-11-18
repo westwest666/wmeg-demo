@@ -179,17 +179,21 @@
     const app = document.getElementById("app");
     app.innerHTML =
       "<div class='top'>" +
-      "<div class='brand'><svg width='26' height='26' viewBox='0 0 32 32'>" +
+      "<div class='brand'><svg width='24' height='24' viewBox='0 0 32 32'>" +
       "<rect width='32' height='32' rx='9' fill='#0E7C86'/>" +
-      "<path d='M6 20c3-8 5 4 8-4s5 6 8-2' fill='none' stroke='#fff' stroke-width='2.4' stroke-linecap='round'/>" +
+      "<path d='M6 20c3-8 5 4 8-4s5 6 8-2' fill='none' stroke='#fff' stroke-width='2.6' stroke-linecap='round'/>" +
       "<circle cx='24' cy='9' r='2.4' fill='#7FE3E9'/></svg>" +
       "<span class='brandtext'>WMEG-Net</span><small>山西 ILI</small></div>" +
-      "<div class='sub' id='pagesub'></div>" +
+      "<span class='vdiv'></span>" +
+      "<div class='viewtitle'><span class='vname' id='pageName'>全省总览</span>" +
+      "<span class='vdesc' id='pagesub'></span></div>" +
       "<div class='spacer'></div>" +
-      "<select class='sel' id='runSel' title='数据集区间（训练轮次）'></select>" +
-      "<span class='chip' id='chipWin'></span>" +
+      "<div class='tools'>" +
+      "<label class='tsel' title='数据集区间（训练轮次）'><span>区间</span>" +
+      "<select class='sel' id='runSel'></select></label>" +
       "<span class='chip' id='chipSplit'></span>" +
       "<span class='chip' id='chipUpd'><i></i><span></span></span>" +
+      "</div>" +
       "</div>" +
       "<div class='shell' id='shell'>" +
       "<aside class='side'>" +
@@ -245,10 +249,8 @@
 
   function refreshChips() {
     const m = STORE.run.meta;
-    const win = document.getElementById("chipWin");
-    if (win) win.innerHTML = "<b>" + m.window_start + "</b> → <b>" + m.window_end + "</b>";
     const sp = document.getElementById("chipSplit");
-    if (sp) sp.innerHTML = "训练 <b>" + m.train_end + "</b> · 测试 <b>" + m.test_start + "</b>";
+    if (sp) sp.innerHTML = "训练 <b>" + m.train_end.slice(2) + "</b> · 测试 <b>" + m.test_start.slice(2) + "</b>";
     const sel = document.getElementById("runSel");
     if (sel) sel.value = STORE.runId;
   }
@@ -282,8 +284,11 @@
         const a = document.getElementById("nav_" + p.id);
         if (a) a.classList.toggle("on", p.id === vid);
       });
+      const pname = document.getElementById("pageName");
       const sub = document.getElementById("pagesub");
-      if (sub) sub.textContent = (PAGES.find((p) => p.id === vid) || {}).label + " · " + (SUB[vid] || "");
+      const page0 = PAGES.find((p) => p.id === vid) || {};
+      if (pname) pname.textContent = page0.label || "";
+      if (sub) sub.textContent = SUB[vid] || "";
       document.title = (PAGES.find((p) => p.id === vid) || {}).label + " · WMEG-Net 山西 ILI";
       const fn = (global.WMEG.pages || {})[vid];
       if (!fn) {
