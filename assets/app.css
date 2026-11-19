@@ -155,13 +155,19 @@ button{font-family:inherit}
 .ico.on{background:var(--accent-soft);color:var(--accent);border-color:#B6DEE0}
 
 /* ---------- KPI ---------- */
-.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(132px,1fr));gap:10px}
-.kpi{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:10px 12px;box-shadow:var(--shadow);position:relative;overflow:hidden}
-.kpi .t{font-size:10.5px;color:var(--tx3);letter-spacing:.06em;display:flex;align-items:center;gap:5px}
-.kpi .v{font-size:22px;font-weight:800;line-height:1.2;margin-top:3px;font-variant-numeric:tabular-nums}
-.kpi .u{font-size:10.5px;color:var(--tx3);font-weight:600;margin-left:3px}
-.kpi .d{font-size:10.5px;color:var(--tx3);margin-top:1px}
-.kpi::after{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--accent);opacity:.55}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(124px,1fr));gap:8px}
+.kpis.seven{grid-template-columns:repeat(7,minmax(0,1fr))}
+/* 窄屏把 7 张 KPI 折成 4 列两行（规则必须放在 .kpis.seven 之后才生效） */
+@media (max-width:1500px){.kpis.seven{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media (max-width:900px){.kpis.seven{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:7px 10px;
+  box-shadow:0 1px 2px rgba(20,32,43,.04);position:relative;overflow:hidden;min-width:0}
+.kpi .t{font-size:9.5px;color:var(--tx3);letter-spacing:.04em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kpi .v{font-size:19px;font-weight:800;line-height:1.15;margin-top:1px;font-variant-numeric:tabular-nums;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kpi .u{font-size:10px;color:var(--tx3);font-weight:600;margin-left:2px}
+.kpi .d{font-size:9.5px;color:var(--tx3);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kpi::after{content:"";position:absolute;left:0;top:0;bottom:0;width:2.5px;background:var(--accent);opacity:.5}
 .kpi.obs::after{background:var(--obs)}.kpi.pred::after{background:var(--pred)}
 .kpi.rt::after{background:var(--rt)}.kpi.r0::after{background:var(--r0)}
 .kpi.warn::after{background:var(--warn)}.kpi.ok::after{background:var(--ok)}

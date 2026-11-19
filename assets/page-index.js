@@ -27,7 +27,7 @@
       })(),
       { t: "数据集区间", v: meta.n_days, u: "天", d: meta.window_start + " → " + meta.window_end },
     ];
-    const kp = U.el("div", "kpis");
+    const kp = U.el("div", "kpis seven");
     kpis.forEach((k) => {
       const el = U.el("div", "kpi " + (k.cls || ""));
       el.innerHTML = "<div class='t'>" + k.t + "</div><div class='v num'>" + k.v +
@@ -48,13 +48,15 @@
       { label: "WMEG-Net 融合预测", color: "#0E7C86", dot: false },
       { label: "训练 / 验证 / 测试", color: "#EDF3F7" },
     ]);
-    const box = U.el("div"); box.style.height = "292px"; box.style.position = "relative";
+    c1.card.style.flex = "1 1 auto";
+    c1.card.style.minHeight = "330px";
+    const box = U.el("div"); box.style.flex = "1 1 auto"; box.style.minHeight = "260px"; box.style.position = "relative";
     c1.bd.appendChild(box);
     let showMech = false;
     function series() {
       const s = [
-        { label: "实测", color: "#1F2A36", width: 1.8, data: D.series.prov.y },
-        { label: "预测", color: "#0E7C86", width: 1.8, data: D.series.prov.f },
+        { label: "实测", color: "#1F2A36", width: 2.2, data: D.series.prov.y },
+        { label: "预测", color: "#0E7C86", width: 2.2, data: D.series.prov.f },
       ];
       if (showMech) s.push({ label: "机理分支（右轴）", color: "#E8590C", width: 1.2, dash: "5 3",
         axis: 2, opacity: .9, data: D.series.prov.m });
