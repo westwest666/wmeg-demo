@@ -30,7 +30,7 @@
         const box = U.el("div");
         const h = hd[scope] || {};
         const rows = [];
-        [["fused", "WMEG-Net（输出）"], ["base", "持续性基线"]].forEach(([k, lab]) => {
+        [["fused", "WMEG-Net（输出）"], ["mech", "机理分支（辅助，不进输出）"], ["base", "持续性基线"]].forEach(([k, lab]) => {
           rows.push("<tr><td><b>" + lab + "</b></td><td>" + U.fmt((h[k] || {}).nrmse, 3) +
             "</td><td>" + U.fmt((h[k] || {}).pcc, 3) + "</td><td>" + U.fmt((h[k] || {}).r2, 3) + "</td></tr>");
         });
@@ -42,8 +42,8 @@
       gw.appendChild(mkTable("city", "池化（11 城 × 日）"));
       gw.appendChild(mkTable("province", "省级（11 城逐日求和）"));
       c0.bd.appendChild(U.el("div", "tiny",
-        "机理分支（SIRS 结构）不参与最终输出，只提供 β、接触矩阵与 Rt 的形状，因此不在图中展示其逐日曲线；" +
-        "页面上所有预测指标都来自输出头。"));
+        "机理分支（SIRS 结构）以 λ_aux≈9% 的权重参与训练，给编码器提供传播结构约束（β、接触矩阵、Rt 形状），" +
+        "但其输出量级比实测小一个数量级且不进入最终预测；图表里默认不叠加它，需要时可在城市页/总览页打开（走右轴）。"));
     }
 
     const c2 = U.card(main, "观测 vs 预测（测试段逐城逐日）", "", []);
