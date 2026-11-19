@@ -31,7 +31,7 @@
     if (D.cities.indexOf(city) < 0) city = D.cities[0];
     ctx.STORE.city = city;
     let view = { a: 0, b: D.dates.length - 1 };
-    let seriesOn = { y: true, f: true, m: false };
+    let seriesOn = { y: true, f: true };
     let chart = null;
 
     const ci = () => D.cities.indexOf(city);
@@ -44,7 +44,6 @@
       const s = [];
       if (seriesOn.y) s.push({ label: "实测", color: "#1F2A36", width: 1.8, data: yArr() });
       if (seriesOn.f) s.push({ label: "WMEG 预测", color: "#0E7C86", width: 1.8, data: fArr() });
-      if (seriesOn.m) s.push({ label: "机理头", color: "#E8590C", width: 1.3, dash: "5 3", data: mArr() });
       return s;
     }
     function splitOf(i) { return D.split[i]; }
@@ -55,7 +54,7 @@
     }
 
     /* ---------- 主图 ---------- */
-    const c1 = U.card(main, (city) + "市 · 拟合与预测", "实测 / WMEG 预测 / 机理头", [
+    const c1 = U.card(main, (city) + "市 · 拟合与预测", "实测 / WMEG 预测", [
       { label: U.icon("expand"), title: "放大查看", fn: () => openBig() },
       { label: U.icon("csv"), title: "导出当前区间 CSV", fn: () => exportCsv() },
     ]);
@@ -63,7 +62,7 @@
     c1.card.style.minHeight = "300px";
     const legendBox = U.el("div", "", CH.legend([
       { label: "实测", color: "#1F2A36" }, { label: "WMEG 预测", color: "#0E7C86", dot: true },
-      { label: "机理头", color: "#E8590C" }, { label: "训练/验证/测试", color: "#EDF3F7" }]));
+      { label: "训练/验证/测试", color: "#EDF3F7" }]));
     c1.bd.appendChild(legendBox);
     const box = U.el("div"); box.style.flex = "1"; box.style.minHeight = "240px"; box.style.position = "relative";
     c1.bd.appendChild(box);
@@ -145,9 +144,9 @@
       }, 30);
     }
     function exportCsv() {
-      const rows = ["day,split,y_true,y_pred_fused,y_pred_mech"];
+      const rows = ["day,split,y_true,y_pred"];
       for (let i = view.a; i <= view.b; i++) {
-        rows.push([D.dates[i], SPLIT_NAME[D.split[i]] || "", yArr()[i], fArr()[i], mArr()[i]].join(","));
+        rows.push([D.dates[i], SPLIT_NAME[D.split[i]] || "", yArr()[i], fArr()[i]].join(","));
       }
       U.download(city + "_" + D.dates[view.a] + "_" + D.dates[view.b] + ".csv", "\ufeff" + rows.join("\n"));
       U.toast("已导出 " + (rows.length - 1) + " 行");
@@ -300,7 +299,7 @@
       });
       cw.appendChild(list);
       cw.appendChild(U.el("h4", "", "曲线 CURVE"));
-      [["y", "实测"], ["f", "WMEG 预测"], ["m", "机理头"]].forEach(([k, lab]) => {
+      [["y", "实测"], ["f", "WMEG 预测"]].forEach(([k, lab]) => {
         const row = U.el("div", "row");
         row.style.cssText = "display:flex;align-items:center;gap:8px;padding:6px 14px;cursor:pointer;font-size:12px;color:var(--tx2)";
         row.innerHTML = "<span class='tick' style='width:10px;height:10px;border:1px solid #8496A6;border-radius:50%;display:inline-block'></span>" + lab;

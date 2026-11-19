@@ -40,7 +40,6 @@
     const c1 = U.card(main, "山西省 · 全省拟合与预测",
       "训练段为拟合，验证/测试段为样本外预测（逐城市建模后求和）", [
         { label: U.icon("expand"), title: "放大", fn: () => openBig() },
-        { label: "机理", title: "叠加机理预测头", on: false, fn: (e) => { showMech = !showMech; e.target.classList.toggle("on"); chart.setData(D.dates, series()); } },
       ]);
     c1.bd.innerHTML = CH.legend([
       { label: "实测（7 日平滑）", color: "#1F2A36" },
@@ -49,13 +48,11 @@
     ]);
     const box = U.el("div"); box.style.height = "292px"; box.style.position = "relative";
     c1.bd.appendChild(box);
-    let showMech = false;
     function series() {
       const s = [
         { label: "实测", color: "#1F2A36", width: 1.8, data: D.series.prov.y },
         { label: "预测", color: "#0E7C86", width: 1.8, data: D.series.prov.f },
       ];
-      if (showMech) s.push({ label: "机理头", color: "#E8590C", width: 1.3, dash: "5 3", data: D.series.prov.m });
       return s;
     }
     const chart = new CH.LineChart(box, { dates: D.dates, series: series(), splitRanges: splitRanges(D), brush: true, zoom: true });
