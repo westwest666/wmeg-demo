@@ -31,7 +31,8 @@
     if (D.cities.indexOf(city) < 0) city = D.cities[0];
     ctx.STORE.city = city;
     let view = { a: 0, b: D.dates.length - 1 };
-    let seriesOn = { y: true, f: true };
+    let seriesOn = { y: true, f: true, m: (ctx.params && ctx.params.get("mech") === "1") };
+    // 机理分支默认关闭（量级小、会干扰读数），开启后走右轴
     let chart = null;
 
     const ci = () => D.cities.indexOf(city);
@@ -44,6 +45,9 @@
       const s = [];
       if (seriesOn.y) s.push({ label: "实测", color: "#1F2A36", width: 1.8, data: yArr() });
       if (seriesOn.f) s.push({ label: "WMEG 预测", color: "#0E7C86", width: 1.8, data: fArr() });
+      // 机理分支不参与输出，量级比预测小一个数量级 → 放到右轴，避免把主曲线压成贴地直线
+      if (seriesOn.m) s.push({ label: "机理分支（右轴）", color: "#E8590C", width: 1.2, dash: "5 3",
+        axis: 2, opacity: .9, data: mArr() });
       return s;
     }
     function splitOf(i) { return D.split[i]; }
@@ -69,7 +73,7 @@
     setTimeout(() => {
       chart = new CH.LineChart(box, {
         dates: D.dates, series: buildSeries(), splitRanges: WMEG.splitRanges(D), brush: true, zoom: true,
-        padding: [12, 46, 26, 44], xTickN: 10,
+        padding: [12, 46, 26, 44], xTickN: 10, y2: true, y2Format: (v) => U.fmt(v, 0), y2color: "#E8590C",
         onSelect: (a, b) => { view = { a, b }; syncRangeLabel(); if (typeof setActive === "function") setActive(null); }
       });
       chart.setRange(view.a, view.b);
@@ -299,7 +303,7 @@
       });
       cw.appendChild(list);
       cw.appendChild(U.el("h4", "", "曲线 CURVE"));
-      [["y", "实测"], ["f", "WMEG 预测"]].forEach(([k, lab]) => {
+      [["y", "实测"], ["f", "WMEG 预测"], ["m", "机理分支"]].forEach(([k, lab]) => {
         const row = U.el("div", "row");
         row.style.cssText = "display:flex;align-items:center;gap:8px;padding:6px 14px;cursor:pointer;font-size:12px;color:var(--tx2)";
         row.innerHTML = "<span class='tick' style='width:10px;height:10px;border:1px solid #8496A6;border-radius:50%;display:inline-block'></span>" + lab;
