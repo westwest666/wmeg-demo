@@ -172,6 +172,23 @@ button{font-family:inherit}
 .kpi.rt::after{background:var(--rt)}.kpi.r0::after{background:var(--r0)}
 .kpi.warn::after{background:var(--warn)}.kpi.ok::after{background:var(--ok)}
 
+/* ---------- 紧凑指标带（总览页顶部） ---------- */
+.mbar{display:flex;align-items:stretch;background:#fff;border:1px solid var(--line);border-radius:8px;
+  box-shadow:0 1px 2px rgba(20,32,43,.04);padding:5px 2px;flex:0 0 auto;min-width:0;overflow:hidden}
+.mbar .m{flex:1 1 0;min-width:0;padding:1px 11px;border-left:1px dashed #E6EDF2;display:flex;
+  flex-direction:column;gap:1px}
+.mbar .m:first-child{border-left:0}
+.mbar .ml{font-size:9.5px;color:var(--tx3);letter-spacing:.03em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mbar .mv{font-size:15px;font-weight:800;line-height:1.15;color:var(--tx);font-variant-numeric:tabular-nums;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mbar .mv i{font-size:9.5px;font-weight:600;color:var(--tx3);font-style:normal;margin-left:2px}
+.mbar .md{font-size:9px;color:var(--tx3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mbar .m.obs .mv{color:#1F2A36}.mbar .m.pred .mv{color:var(--accent)}
+.mbar .m.rt .mv{color:var(--rt)}.mbar .m.r0 .mv{color:var(--r0)}
+.mbar .m.ok .mv{color:var(--ok)}.mbar .m.warn .mv{color:var(--warn)}
+/* 主图卡片：吃掉视口剩余高度，图是主角 */
+.card.mainchart{flex:1 1 auto;min-height:clamp(340px,calc(100vh - 210px),820px)}
+
 /* ---------- 图表 ---------- */
 .chart{position:relative;width:100%;min-height:0;flex:1}
 .chart svg{display:block;width:100%;height:100%;overflow:visible}

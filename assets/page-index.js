@@ -27,11 +27,14 @@
       })(),
       { t: "数据集区间", v: meta.n_days, u: "天", d: meta.window_start + " → " + meta.window_end },
     ];
-    const kp = U.el("div", "kpis seven");
+    // 紧凑指标带：只占一条窄带，视觉重量让给主图
+    const kp = U.el("div", "mbar");
     kpis.forEach((k) => {
-      const el = U.el("div", "kpi " + (k.cls || ""));
-      el.innerHTML = "<div class='t'>" + k.t + "</div><div class='v num'>" + k.v +
-        (k.u ? "<span class='u'>" + k.u + "</span>" : "") + "</div><div class='d'>" + k.d + "</div>";
+      const el = U.el("div", "m " + (k.cls || ""));
+      el.innerHTML = "<span class='ml'>" + k.t + "</span>" +
+        "<span class='mv num'>" + k.v + (k.u ? "<i>" + k.u + "</i>" : "") + "</span>" +
+        "<span class='md'>" + k.d + "</span>";
+      el.title = k.t + " · " + k.d;
       kp.appendChild(el);
     });
     main.appendChild(kp);
@@ -48,8 +51,7 @@
       { label: "WMEG-Net 融合预测", color: "#0E7C86", dot: false },
       { label: "训练 / 验证 / 测试", color: "#EDF3F7" },
     ]);
-    c1.card.style.flex = "1 1 auto";
-    c1.card.style.minHeight = "330px";
+    c1.card.classList.add("mainchart");
     const box = U.el("div"); box.style.flex = "1 1 auto"; box.style.minHeight = "260px"; box.style.position = "relative";
     c1.bd.appendChild(box);
     let showMech = false;
