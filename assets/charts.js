@@ -194,7 +194,8 @@
         el("line", { x1: x0, x2: x1, y1: y, y2: y }, this.gGrid);
         el("text", { x: x0 - 6, y: y + 3.5, "text-anchor": "end" }, this.gAxis).textContent = o.yFormat(v);
       });
-      if (o.y2) {
+      const hasY2 = (o.series || []).some((s) => s.axis === 2);
+      if (o.y2 && hasY2) {
         niceTicks(d2min, d2max, 3).forEach((v) => {
           if (v < d2min - 1e-9 || v > d2max + 1e-9) return;
           const y = Y2(v);
