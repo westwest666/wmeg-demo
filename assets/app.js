@@ -219,8 +219,11 @@
       const o = document.createElement("option");
       o.value = r.run_id;
       const k = r.kpi || {};
-      o.textContent = r.window_start.slice(0, 7) + " → " + r.window_end.slice(0, 7) +
-        (k.nrmse !== undefined && k.nrmse !== null ? " · nRMSE " + k.nrmse.toFixed(3) : "");
+      // 标签要短：太长会被原生 select 裁成 "…n"（窗口本身已能区分大部分轮次，
+      // 同窗口的实验臂用 run_id 后缀区分）
+      const _id = String(r.run_id || "");
+      const _tag = /^(run_|sweep_)/.test(_id) ? "" : " · " + _id;
+      o.textContent = r.window_start.slice(0, 7) + " → " + r.window_end.slice(0, 7) + _tag;
       sel.appendChild(o);
     });
     sel.onchange = async () => {
