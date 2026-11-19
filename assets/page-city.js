@@ -63,12 +63,13 @@
       { label: U.icon("csv"), title: "导出当前区间 CSV", fn: () => exportCsv() },
     ]);
     c1.card.style.flex = "1";
-    c1.card.style.minHeight = "300px";
+    // 卡片最小高度必须 ≥ 头部+图例+工具条(约 90px) + 图表最小高度，否则底部工具条会被 overflow 裁掉
+    c1.card.style.minHeight = "330px";
     const legendBox = U.el("div", "", CH.legend([
       { label: "实测", color: "#1F2A36" }, { label: "WMEG 预测", color: "#0E7C86", dot: true },
       { label: "训练/验证/测试", color: "#EDF3F7" }]));
     c1.bd.appendChild(legendBox);
-    const box = U.el("div"); box.style.flex = "1"; box.style.minHeight = "240px"; box.style.position = "relative";
+    const box = U.el("div"); box.style.flex = "1"; box.style.minHeight = "170px"; box.style.position = "relative";
     c1.bd.appendChild(box);
     setTimeout(() => {
       chart = new CH.LineChart(box, {
@@ -128,8 +129,8 @@
       if (a < 0 || b < 0 || b <= a) { U.toast("区间无效"); return; }
       view = { a, b }; chart.setRange(a, b); syncRangeLabel(); setActive(null);
     };
-    c1.bd.appendChild(bar);
-    c1.bd.appendChild(bar);
+    // 工具条放到图表上方：窗口再矮、图表再被压，控件也不会被卡片底边裁掉
+    c1.bd.insertBefore(bar, c1.bd.firstChild);
     function openBig() {
       const bd = U.modal(city + "市 · " + D.dates[view.a] + " → " + D.dates[view.b], () => {});
       const d = U.el("div"); d.style.flex = "1"; d.style.minHeight = "0";
