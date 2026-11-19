@@ -91,10 +91,11 @@
     // 标签
     Object.keys(G.cents || {}).forEach((k) => {
       const [x, y] = G.cents[k];
-      const t1 = e("text", { x, y: y - 3, "text-anchor": "middle", "font-size": 12.5, "font-weight": 700,
-        fill: "#14202B", "paint-order": "stroke", stroke: "#fff", "stroke-width": 2.2, style: "pointer-events:none" }, gLab);
+      const t1 = e("text", { x, y: y - 5, "text-anchor": "middle", "font-size": 17, "font-weight": 800,
+        "letter-spacing": ".5", fill: "#14202B", "paint-order": "stroke", stroke: "#fff", "stroke-width": 3.2,
+        style: "pointer-events:none" }, gLab);
       t1.textContent = k;
-      const t2 = e("text", { x, y: y + 12, "text-anchor": "middle", "font-size": 11, "font-weight": 700,
+      const t2 = e("text", { x, y: y + 15, "text-anchor": "middle", "font-size": 15, "font-weight": 800,
         fill: "#14202B", "paint-order": "stroke", stroke: "#fff", "stroke-width": 2.2,
         "font-variant-numeric": "tabular-nums", style: "pointer-events:none" }, gLab);
       labels[k] = [t1, t2];
@@ -103,10 +104,10 @@
     const st = { s: 1, tx: 0, ty: 0 };
     function applyT() { gZoom.setAttribute("transform", "translate(" + st.tx + "," + st.ty + ") scale(" + st.s + ")"); syncLabelSize(); }
     function syncLabelSize() {
-      const fs = Math.max(7, 12.5 / st.s);
+      const fs = Math.max(9, 17 / st.s);
       gLab.querySelectorAll("text").forEach((t, i) => {
-        t.setAttribute("font-size", t.getAttribute("data-base-y") === null ? (i % 2 === 0 ? fs : fs * 0.88) : fs);
-        t.setAttribute("stroke-width", Math.max(1.4, 2.2 / st.s));
+        t.setAttribute("font-size", i % 2 === 0 ? fs : fs * 0.88);
+        t.setAttribute("stroke-width", Math.max(2.0, 3.2 / st.s));
       });
       gAdj.querySelectorAll("line").forEach((l) => l.setAttribute("stroke-width", 1.1 / st.s));
       gPoly.querySelectorAll("path").forEach((p) => p.setAttribute("stroke-width", 1.6 / st.s));
@@ -187,6 +188,7 @@
     function render() {
       const d = D.dates[day];
       dayTxt.textContent = d;
+      dayTxt.style.fontSize = "17px";
       let sumO = 0, sumP = 0;
       // 计数类用对数刻度（低值日也能看出差异），偏差/Rt 用线性
       const scale = (v) => {
@@ -221,10 +223,13 @@
         if (yv !== null) sumO += yv; if (fv !== null) sumP += fv;
       });
       tot.innerHTML = "全省 实测 <b>" + U.fmt(sumO, 0) + "</b> · 预测 <b>" + U.fmt(sumP, 0) + "</b>";
+      tot.style.fontSize = "13px";
       gFlow.style.display = showFlow ? "" : "none";
       gAdj.style.display = showAdj ? "" : "none";
       gLab.style.display = showLab ? "" : "none";
       (flowEls || []).forEach((p) => p && p.setAttribute("opacity", showFlow ? .55 : 0));
+      scalebar.style.fontSize = "13px";
+      scalebar.style.padding = "6px 12px";
       scalebar.textContent = ["预测值", "实测值", "偏差(预测-实测)", "Rt"][["pred", "obs", "bias", "rt"].indexOf(metric)] + " · 色阶 0 ~ " + U.fmt(MX, metric === "rt" ? 2 : 0);
       renderRail();
     }
