@@ -375,7 +375,9 @@
       this.svg.setAttribute("height", H);
       this.svg.innerHTML = "";
       const lw = o.labelW, lh = o.labelH;
-      const gw = (W - lw - 4) / nc, gh = (H - lh - 4) / nr;
+      // 单元格从顶部 2px 开始，底部预留 lh 给列标签（旧版从 lh 开始画，
+      // 导致最后一行单元格与底部列标签重叠）
+      const gw = (W - lw - 4) / nc, gh = (H - lh - 6) / nr;
       let mn = o.min, mx = o.max;
       if (mn === null || mx === null) {
         mn = Infinity; mx = -Infinity;
@@ -387,12 +389,12 @@
       }
       this._g = { lw, lh, gw, gh, mn, mx };
       for (let i = 0; i < nr; i++) {
-        el("text", { x: lw - 6, y: lh + gh * i + gh / 2 + 3.5, "text-anchor": "end" }, this.svg).textContent = o.rows[i];
+        el("text", { x: lw - 6, y: 2 + gh * i + gh / 2 + 3.5, "text-anchor": "end" }, this.svg).textContent = o.rows[i];
         for (let j = 0; j < nc; j++) {
           const v = o.values[i][j];
           const t = (v == null || !isFinite(v)) ? -1 : (v - mn) / (mx - mn || 1);
           const c = t < 0 ? "#F2F5F8" : this.colorAt(o.invert ? 1 - t : t);
-          const r = el("rect", { x: lw + gw * j + 1, y: lh + gh * i + 1, width: Math.max(1, gw - 2),
+          const r = el("rect", { x: lw + gw * j + 1, y: 2 + gh * i + 1, width: Math.max(1, gw - 2),
             height: Math.max(1, gh - 2), rx: o.cellRadius, fill: c }, this.svg);
           r.style.cursor = o.onClick ? "pointer" : "default";
           if (o.onClick) r.addEventListener("click", () => o.onClick(i, j));
@@ -409,8 +411,8 @@
           const fits = gw > (txt.length * 5.6 + 6) && gh > 15;
           if (fits) {
             const dark = t > 0.55;
-            el("text", { x: lw + gw * j + gw / 2, y: lh + gh * i + gh / 2 + 3.2, "text-anchor": "middle",
-              "font-size": Math.min(9.5, gh * 0.42), fill: dark ? "#fff" : "#3E5468",
+            el("text", { x: lw + gw * j + gw / 2, y: 2 + gh * i + gh / 2 + 3.2, "text-anchor": "middle",
+              "font-size": Math.min(10, Math.max(7.5, gh * 0.44)), fill: dark ? "#fff" : "#3E5468",
               "pointer-events": "none" }, this.svg).textContent = txt;
           }
         }
@@ -484,7 +486,7 @@
       const H = o.height || this.host.clientHeight || 240;
       this.svg.setAttribute("viewBox", "0 0 " + W + " " + H);
       this.svg.setAttribute("height", H); this.svg.innerHTML = "";
-      const pl = 40, pr = 14, pt = 12, pb = 26;
+      const pl = 40, pr = 14, pt = 12, pb = o.xLabel ? 34 : 26;
       let mn = Infinity, mx = -Infinity;
       for (let i = 0; i < o.x.length; i++) {
         const a = o.x[i], b = o.y[i];
@@ -499,7 +501,7 @@
         const v = mx * k / 4;
         el("line", { x1: pl, x2: W - pr, y1: Y(v), y2: Y(v), stroke: "#EDF2F6" }, this.svg);
         el("text", { x: pl - 5, y: Y(v) + 3.4, "text-anchor": "end", "font-size": 9.5, fill: "#8496A6" }, this.svg).textContent = fmt(v, 1);
-        el("text", { x: X(v), y: H - 8, "text-anchor": "middle", "font-size": 9.5, fill: "#8496A6" }, this.svg).textContent = fmt(v, 1);
+        el("text", { x: X(v), y: H - (o.xLabel ? 20 : 8), "text-anchor": "middle", "font-size": 9.5, fill: "#8496A6" }, this.svg).textContent = fmt(v, 1);
       }
       if (o.showLine) el("line", { x1: X(0), y1: Y(0), x2: X(mx), y2: Y(mx), stroke: "#C9D6E2",
         "stroke-dasharray": "4 4" }, this.svg);
@@ -508,7 +510,8 @@
         if (!isFinite(a) || !isFinite(b)) continue;
         el("circle", { cx: X(a), cy: Y(b), r: o.r, fill: o.color, opacity: o.opacity }, this.svg);
       }
-      el("text", { x: pl, y: H - 8, "text-anchor": "start", "font-size": 9.5, fill: "#8496A6" }, this.svg).textContent = o.xLabel;
+      // 轴标题独立放在刻度下方居中，避免与第一个刻度（0.0）叠在一起
+      el("text", { x: (pl + W - pr) / 2, y: H - 5, "text-anchor": "middle", "font-size": 9.5, fill: "#8496A6" }, this.svg).textContent = o.xLabel;
       el("text", { x: W - pr, y: pt - 2, "text-anchor": "end", "font-size": 9.5, fill: "#8496A6" }, this.svg).textContent = o.yLabel;
     }
   }

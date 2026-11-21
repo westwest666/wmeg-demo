@@ -316,5 +316,50 @@ table.t.compact th:first-child,table.t.compact td:first-child{width:36%}
 /* ---------- 迁徙流动画 ---------- */
 @keyframes flowdash{to{stroke-dashoffset:-28}}
 .flow{stroke-dasharray:6 8;animation:flowdash 1.4s linear infinite}
+
+/* ---------- 左控制台：图层开关 / 着色单选行 ---------- */
+.side .row{display:flex;align-items:center;gap:8px;border-radius:6px;margin:0 8px;
+  padding:6px 9px;font-size:12px;color:var(--tx2);cursor:pointer;user-select:none;transition:background .12s}
+.side .row:hover{background:var(--panel3);color:var(--tx)}
+.side .row .tick{flex:0 0 auto;display:inline-block}
 .row.on .tick{border-color:var(--accent);box-shadow:inset 0 0 0 3px var(--accent)}
-.side .row{border-radius:6px;margin:0 8px}
+.side .row.on{color:var(--accent)}
+/* 复选（图层）：城市页曲线行沿用原圆点样式，这里只接管 .ctl 行 */
+.side .row.ctl .tick{width:13px;height:13px;flex:0 0 13px;border:1.5px solid var(--line2);
+  border-radius:4px;background:#fff;position:relative;box-shadow:none;transition:.12s}
+.side .row.ctl.on .tick{background:var(--accent);border-color:var(--accent);box-shadow:none}
+.side .row.ctl.on .tick::after{content:"";position:absolute;left:3px;top:1px;width:4px;height:7px;
+  border:solid #fff;border-width:0 1.8px 1.8px 0;transform:rotate(45deg)}
+.side .row.ctl.radio .tick{border-radius:50%}
+.side .row.ctl.radio.on .tick::after{left:50%;top:50%;width:5px;height:5px;border:0;background:#fff;
+  border-radius:50%;transform:translate(-50%,-50%)}
+
+/* ---------- 地图色阶图例（文字 + 渐变条 + 刻度） ---------- */
+.scalebar{min-width:158px}
+.scalebar .sb-t{white-space:nowrap}
+.scalebar .sb-bar{height:7px;border-radius:4px;margin:5px 0 3px;border:1px solid rgba(20,32,43,.07);
+  background:linear-gradient(90deg,#F7FBFD,#FEECD2,#FDBA74,#F07147,#BE2828,#78141E)}
+.scalebar .sb-l{display:flex;justify-content:space-between;font-size:9.5px;color:var(--tx3);
+  font-variant-numeric:tabular-nums}
+
+/* ---------- 细节统一：卡片标题、表格、可点击小卡片 ---------- */
+.card>.hd h3::before{content:"";display:inline-block;width:3px;height:11px;border-radius:2px;
+  background:var(--accent);opacity:.7;margin-right:6px;vertical-align:-1px}
+table.t tbody tr:nth-child(even) td{background:#FAFCFD}
+table.t tbody tr:hover td{background:var(--panel3)}
+.citycell{transition:border-color .12s,box-shadow .12s}
+.citycell:hover{border-color:#9CCFD4!important;box-shadow:0 2px 10px rgba(14,124,134,.12)}
+
+/* ---------- 滚动条：细化主区 / 右栏 / 控制台 ---------- */
+.main,.rail,.scroll,#consoleWrap{scrollbar-width:thin;scrollbar-color:#C6D3DD transparent}
+.main::-webkit-scrollbar,.rail::-webkit-scrollbar,.scroll::-webkit-scrollbar,#consoleWrap::-webkit-scrollbar{width:8px;height:8px}
+.main::-webkit-scrollbar-thumb,.rail::-webkit-scrollbar-thumb,.scroll::-webkit-scrollbar-thumb,#consoleWrap::-webkit-scrollbar-thumb{
+  background:#C6D3DD;border-radius:6px;border:2px solid transparent;background-clip:content-box}
+.main::-webkit-scrollbar-thumb:hover,.rail::-webkit-scrollbar-thumb:hover,.scroll::-webkit-scrollbar-thumb:hover,#consoleWrap::-webkit-scrollbar-thumb:hover{
+  background:#9FB4C2;border:2px solid transparent;background-clip:content-box}
+.main::-webkit-scrollbar-track,.rail::-webkit-scrollbar-track,.scroll::-webkit-scrollbar-track,#consoleWrap::-webkit-scrollbar-track{background:transparent}
+
+/* ---------- 指标带窄屏：折行而不是挤成省略号 ---------- */
+@media (max-width:1180px){.mbar{flex-wrap:wrap;row-gap:5px;padding:6px 2px}
+  .mbar .m{flex:1 1 24%;padding:2px 11px}
+  .mbar .m:nth-child(4n+1){border-left:0}}

@@ -147,6 +147,8 @@
     });
     wrap.appendChild(tools);
     const scalebar = U.el("div", "scalebar", "");
+    scalebar.innerHTML = "<div class='sb-t'></div><div class='sb-bar'></div>" +
+      "<div class='sb-l'><span>0</span><span class='sb-max'></span></div>";
     wrap.appendChild(scalebar);
 
     /* ---------- 时间轴 ---------- */
@@ -230,7 +232,8 @@
       (flowEls || []).forEach((p) => p && p.setAttribute("opacity", showFlow ? .55 : 0));
       scalebar.style.fontSize = "13px";
       scalebar.style.padding = "6px 12px";
-      scalebar.textContent = ["预测值", "实测值", "偏差(预测-实测)", "Rt"][["pred", "obs", "bias", "rt"].indexOf(metric)] + " · 色阶 0 ~ " + U.fmt(MX, metric === "rt" ? 2 : 0);
+      scalebar.querySelector(".sb-t").textContent = ["预测值", "实测值", "偏差(预测-实测)", "Rt"][["pred", "obs", "bias", "rt"].indexOf(metric)] + " · 色阶";
+      scalebar.querySelector(".sb-max").textContent = U.fmt(MX, metric === "rt" ? 2 : 0);
       renderRail();
     }
     /* ---------- 右栏 ---------- */
@@ -279,7 +282,7 @@
     if (ctx.console) {
       const cw = ctx.console;
       const row = (label, on, fn) => {
-        const d = U.el("div", "row" + (on ? " on" : ""));
+        const d = U.el("div", "row ctl" + (on ? " on" : ""));
         d.innerHTML = "<span class='tick'></span>" + label;
         d.onclick = fn;
         cw.appendChild(d);
@@ -303,6 +306,7 @@
           d.classList.add("on");
           render();
         });
+        d.classList.add("radio");
         return d;
       });
     }

@@ -84,19 +84,19 @@
     c3.bd.appendChild(tb);
 
     /* 右栏 */
-    const r1 = U.card(rail, "分段指标", "池化全部城市-日");
+    const r1 = U.card(rail, "分段指标", "池化全部城市-日 · 训练即拟合、测试即样本外");
     const t1 = U.el("div");
     let h1 = "<table class='t'><thead><tr><th>分段</th><th>n</th><th>RMSE</th><th>nRMSE</th><th>PCC</th><th>R²</th></tr></thead><tbody>";
     ["train", "val", "test"].forEach((k) => {
       const s = (mt.splits || {})[k];
       if (!s) return;
-      h1 += "<tr><td>" + ({ train: "训练（拟合）", val: "验证", test: "测试（样本外）" }[k]) + "</td><td>" + s.n +
+      h1 += "<tr><td>" + ({ train: "训练", val: "验证", test: "测试" }[k]) + "</td><td>" + s.n +
         "</td><td>" + U.fmt(s.rmse, 2) + "</td><td>" + U.pct(s.nrmse, 1) + "</td><td>" + U.fmt(s.pcc, 3) +
         "</td><td>" + U.fmt(s.r2, 3) + "</td></tr>";
     });
     const bs = (mt.baseline || {});
     if (bs.nrmse !== undefined && bs.nrmse !== null) {
-      h1 += "<tr style='background:#F7FAFC'><td>持续性基线</td><td>" + (bs.n || "—") + "</td><td>" +
+      h1 += "<tr style='background:#F7FAFC'><td>持续基线</td><td>" + (bs.n || "—") + "</td><td>" +
         U.fmt(bs.rmse, 2) + "</td><td>" + U.pct(bs.nrmse, 1) + "</td><td>" + U.fmt(bs.pcc, 3) +
         "</td><td>" + U.fmt(bs.r2, 3) + "</td></tr>";
     }

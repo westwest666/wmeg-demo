@@ -22,10 +22,10 @@
         const b = (mt.baseline || {});
         const sk = b.skill, skp = (b.province || {}).skill;
         return { t: "相对持续性基线", v: (sk === null || sk === undefined) ? "—" : (sk > 0 ? "+" : "") + (sk * 100).toFixed(1) + "%",
-          d: "省级 " + ((skp === null || skp === undefined) ? "—" : (skp > 0 ? "+" : "") + (skp * 100).toFixed(1) + "%") + " · 同口径多步持续性",
+          d: "省级 " + ((skp === null || skp === undefined) ? "—" : (skp > 0 ? "+" : "") + (skp * 100).toFixed(1) + "%") + " · 同口径多步",
           cls: (sk > 0 ? "ok" : "warn") };
       })(),
-      { t: "数据集区间", v: meta.n_days, u: "天", d: meta.window_start + " → " + meta.window_end },
+      { t: "数据集区间", v: meta.n_days, u: "天", d: meta.window_start.slice(2) + " → " + meta.window_end.slice(2) },
     ];
     // 紧凑指标带：只占一条窄带，视觉重量让给主图
     const kp = U.el("div", "mbar");
@@ -81,7 +81,7 @@
     grid.style.gap = "8px";
     c2.bd.appendChild(grid);
     D.cities.forEach((city, ci) => {
-      const cell = U.el("div");
+      const cell = U.el("div", "citycell");
       cell.style.cssText = "border:1px solid var(--line);border-radius:8px;padding:5px 6px 2px;cursor:pointer;background:#fff";
       const head = U.el("div");
       head.style.cssText = "display:flex;align-items:baseline;gap:6px;font-size:11.5px";

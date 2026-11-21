@@ -15,7 +15,7 @@
     segs.forEach((s) => {
       const d = U.el("div");
       d.style.cssText = "width:" + ((s.n || 0) / tot * 100) + "%;background:" + s.c + ";display:flex;align-items:center;justify-content:center;gap:6px";
-      d.innerHTML = (s.n / tot > 0.1) ? (s.k + " " + (s.n / tot * 100).toFixed(0) + "%") : "";
+      d.innerHTML = (s.n / tot >= 0.085) ? (s.k + " " + (s.n / tot * 100).toFixed(0) + "%") : (s.n / tot >= 0.04 ? s.k : "");
       d.title = s.k + " " + s.d + " · " + s.n + " 天";
       bar.appendChild(d);
     });
@@ -41,7 +41,7 @@
         xTickN: Math.max(2, sweep.length - 1), padding: [10, 44, 24, 42], yFormat: (v) => U.pct(v, 0),
         series: [{ label: "nRMSE", color: "#0E7C86", width: 2, data: sweep.map((s) => s.nrmse) }] });
       new CH.LineChart(l2, { dates: sweep.map((s) => String(s.years)), minimal: false, showX: true, xFormat: (d) => d + " 年",
-        xTickN: Math.max(2, sweep.length - 1), padding: [10, 44, 24, 42], yFormat: (v) => U.fmt(v, 2),
+        xTickN: Math.max(2, sweep.length - 1), padding: [10, 44, 24, 42], yFormat: (v) => U.fmt(v, 3),
         series: [{ label: "R²", color: "#2F7FC1", width: 2, data: sweep.map((s) => s.r2) }] });
     }, 30);
     c1.bd.appendChild(U.el("div", "tiny", "左：nRMSE（越低越好）；右：R²（越高越好）。横轴为训练+验证+测试的总跨度。"));
@@ -70,13 +70,13 @@
 
     /* 覆盖热力 */
     const c3 = U.card(main, "病例数据覆盖（年 × 城市）", "7 日平滑后的累计病例数，颜色越深越多", []);
-    const h3 = U.el("div"); h3.style.height = "200px";
+    const h3 = U.el("div"); h3.style.height = "252px";
     c3.bd.appendChild(h3);
     setTimeout(() => {
       const cs = (prof.cases || {});
       const yrs = Object.keys(cs.yearly_by_city || {});
       const vals = yrs.map((y) => cs.yearly_by_city[y]);
-      new CH.Heatmap(h3, { rows: yrs, cols: D.cities, values: vals, height: 200, labelW: 34,
+      new CH.Heatmap(h3, { rows: yrs, cols: D.cities, values: vals, height: 252, labelW: 34,
         fmt: (v) => (v === null ? "—" : U.fmt(v, 0)), colorScale: ["#F7FBFD", "#D6EEF0", "#7EC8CF", "#2E9AA6", "#0E7C86", "#0B5A62"] });
     }, 40);
 

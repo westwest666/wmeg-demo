@@ -191,30 +191,45 @@
       if (!keys.length) return;
       const vals = keys.map((k) => mon[k].y / Math.max(1, mon[k].n));
       const mx = Math.max(0.001, Math.max.apply(null, vals));
-      const wrapM = U.el("div");
-      wrapM.style.cssText = "display:flex;gap:2px;align-items:flex-end;height:86px";
-      const g = U.el("div");
-      g.style.cssText = "flex:1;display:flex;gap:2px;align-items:flex-end;height:86px";
+      // 用 SVG 而不是 flex 柱：月份多达 132 根时，flex 的 2px 间隙会把柱体挤成 0 宽（旧版整图空白）
+      const NSM = "http://www.w3.org/2000/svg";
+      const W = 1000, H = 86, bw = W / keys.length;
+      const svg = document.createElementNS(NSM, "svg");
+      svg.setAttribute("viewBox", "0 0 " + W + " " + H);
+      svg.setAttribute("preserveAspectRatio", "none");
+      svg.style.cssText = "display:block;width:100%;height:86px";
+      const grad = document.createElementNS(NSM, "linearGradient");
+      grad.setAttribute("id", "monGrad");
+      grad.setAttribute("x1", "0"); grad.setAttribute("y1", "0");
+      grad.setAttribute("x2", "0"); grad.setAttribute("y2", "1");
+      [["0%", "#57B7BE"], ["100%", "#0E7C86"]].forEach(([off, col]) => {
+        const st = document.createElementNS(NSM, "stop");
+        st.setAttribute("offset", off); st.setAttribute("stop-color", col); grad.appendChild(st);
+      });
+      svg.appendChild(grad);
       keys.forEach((k, ki) => {
-        const col = U.el("div");
-        col.style.cssText = "flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;cursor:pointer;height:100%";
         const h = Math.max(2, Math.sqrt(vals[ki] / mx) * 78);
-        const bar = U.el("div");
-        bar.style.cssText = "width:100%;border-radius:2px 2px 0 0;background:linear-gradient(180deg,#57B7BE,#0E7C86);height:" + h + "px";
-        bar.title = k + " · 日均实测 " + U.fmt(vals[ki], 1) + " · 预测 " + U.fmt(mon[k].f / Math.max(1, mon[k].n), 1);
-        col.appendChild(bar);
-        col.onclick = () => {
+        const r = document.createElementNS(NSM, "rect");
+        r.setAttribute("x", (ki * bw + bw * 0.12).toFixed(2));
+        r.setAttribute("y", (H - h).toFixed(2));
+        r.setAttribute("width", Math.max(0.6, bw * 0.76).toFixed(2));
+        r.setAttribute("height", h.toFixed(2));
+        r.setAttribute("fill", "url(#monGrad)");
+        r.style.cursor = "pointer";
+        const tt = document.createElementNS(NSM, "title");
+        tt.textContent = k + " · 日均实测 " + U.fmt(vals[ki], 1) + " · 预测 " + U.fmt(mon[k].f / Math.max(1, mon[k].n), 1);
+        r.appendChild(tt);
+        r.addEventListener("click", () => {
           const a = D.dates.findIndex((d) => d.slice(0, 7) === k);
           let b = a; while (b + 1 < D.dates.length && D.dates[b + 1].slice(0, 7) === k) b++;
           if (a >= 0) { view = { a, b }; chart.setRange(view.a, view.b); syncRangeLabel(); renderRail(); }
-        };
-        g.appendChild(col);
+        });
+        svg.appendChild(r);
       });
       const xlab = U.el("div");
       xlab.style.cssText = "display:flex;justify-content:space-between;font-size:9.5px;color:#8496A6;margin-top:3px";
       xlab.innerHTML = "<span>" + (keys[0] || "") + "</span><span>" + (keys[Math.floor(keys.length / 2)] || "") + "</span><span>" + (keys[keys.length - 1] || "") + "</span>";
-      wrapM.appendChild(g);
-      host.appendChild(wrapM);
+      host.appendChild(svg);
       host.appendChild(xlab);
     }
 

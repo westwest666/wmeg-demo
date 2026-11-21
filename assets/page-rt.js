@@ -36,7 +36,7 @@
     grid.style.cssText = "display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px";
     c2.bd.appendChild(grid);
     D.cities.forEach((city, ci) => {
-      const cell = U.el("div");
+      const cell = U.el("div", "citycell");
       cell.style.cssText = "border:1px solid var(--line);border-radius:8px;padding:5px 6px 2px;cursor:pointer";
       const hd = U.el("div");
       const r0v = (D.r0.city.find((z) => z.city === city) || {}).r0;
