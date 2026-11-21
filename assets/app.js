@@ -283,6 +283,7 @@
       page.classList.remove("norail");
       main.className = "main";
       main.innerHTML = ""; rail.innerHTML = ""; cw.innerHTML = "";
+      document.body.style.overflow = "";   // 地图全屏状态下切页时恢复滚动
       main.scrollTop = 0; rail.scrollTop = 0;
       PAGES.forEach((p) => {
         const a = document.getElementById("nav_" + p.id);

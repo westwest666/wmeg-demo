@@ -41,6 +41,24 @@
       b.onclick = () => { st.s = 1; st.tx = 0; st.ty = 0; applyT(); };
       return b;
     })());
+    card.tools.appendChild((function () {
+      const b = U.el("button", "ico", "⛶");
+      b.title = "全屏查看地图（Esc 退出）";
+      b.onclick = () => {
+        const on = card.card.classList.toggle("fullmap");
+        b.classList.toggle("on", on);
+        document.body.style.overflow = on ? "hidden" : "";
+        setTimeout(() => { syncLabelSize(); window.dispatchEvent(new Event("resize")); }, 60);
+      };
+      return b;
+    })());
+    document.addEventListener("keydown", (ev) => {
+      if (ev.key === "Escape" && card.card.classList.contains("fullmap")) {
+        card.card.classList.remove("fullmap");
+        document.body.style.overflow = "";
+        setTimeout(syncLabelSize, 60);
+      }
+    });
     card.card.style.flex = "1";
     card.card.style.minHeight = "0";
     const wrap = U.el("div", "mapwrap");
@@ -140,17 +158,18 @@
       // 屏幕实际字号 = SVG 字号 × 容器宽 / G.W，按此反推：
       // 小窗口下也保证名称约 12.5px、数值约 11px，不再随容器等比缩成小号字
       const k = G.W / Math.max(320, wrap.clientWidth || 700);
-      const fs = Math.max(17, 12.5 * k) / st.s;
+      const fs = Math.max(20, 18 * k) / st.s;   // 屏幕上名称约 18px、数值约 15px
+      const halo = Math.max(2.4, fs * 0.12);
       gLab.querySelectorAll("text").forEach((t, i) => {
-        t.setAttribute("font-size", i % 2 === 0 ? fs : fs * 0.88);
-        t.setAttribute("stroke-width", Math.max(2.0, 3.2 / st.s));
+        t.setAttribute("font-size", i % 2 === 0 ? fs : fs * 0.83);
+        t.setAttribute("stroke-width", halo);
       });
       // 行距随字号同步调整，避免名称行与数值行叠字
       Object.keys(labels).forEach((k) => {
         const c = G.cents[k];
         if (!c) return;
-        labels[k][0].setAttribute("y", c[1] - fs * 0.30);
-        labels[k][1].setAttribute("y", c[1] + fs * 1.00);
+        labels[k][0].setAttribute("y", c[1] - fs * 0.42);
+        labels[k][1].setAttribute("y", c[1] + fs * 1.05);
       });
       gAdj.querySelectorAll("line").forEach((l) => l.setAttribute("stroke-width", 1.1 / st.s));
       gPoly.querySelectorAll("path").forEach((p) => p.setAttribute("stroke-width", 1.6 / st.s));

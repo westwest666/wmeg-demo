@@ -225,6 +225,10 @@ button{font-family:inherit}
 .scalebar{position:absolute;left:10px;top:10px;font-size:10px;color:var(--tx3);background:rgba(255,255,255,.9);
   border:1px solid var(--line);border-radius:6px;padding:4px 8px;z-index:4}
 
+/* 地图全屏：小窗口下也能把 11 市标注看清 */
+.card.fullmap{position:fixed;inset:14px;z-index:300;background:#fff;box-shadow:0 24px 70px rgba(12,22,30,.28)}
+.card.fullmap .mapwrap{min-height:0}
+
 /* ---------- 时间轴 ---------- */
 .timeline{display:flex;align-items:center;gap:12px;padding:8px 14px 10px}
 .timeline .day{font-size:14px;font-weight:800;font-variant-numeric:tabular-nums;min-width:96px}
