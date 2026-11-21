@@ -14,7 +14,7 @@
   window.WMEG.register("map", function (main, rail, ctx) {
     const D = ctx.D, G = D.map, U2 = U;
     const n = D.dates.length;
-    let metric = "pred", showFlow = true, showAdj = true, showLab = true;
+    let metric = "pred", showFlow = true, showAdj = true, showLab = true, showVal = true;
     let day = (function () {
       // 默认停在测试段里第一个「有预测值」的日期（分段起点前 20 天因窗口不足无预测）
       let t = D.dates.indexOf(D.meta.test_start);
@@ -28,7 +28,7 @@
     let playing = false, timer = null, sel = ctx.STORE.city;
 
     /* ---------- 地图 ---------- */
-    const card = U.card(main, "山西省 11 地级市 · 时空传播", "色阶随「着色」切换 · 时间轴逐日回放", []);
+    const card = U.card(main, "山西省 11 地级市 · 时空传播", "色阶随「着色」切换 · 时间轴逐日回放 · 悬停城市查看详情", []);
     card.tools.appendChild((function () {
       const b = U.el("button", "ico", "▶");
       b.title = "播放 / 暂停";
@@ -70,9 +70,13 @@
     Object.keys(G.polys || {}).forEach((k) => {
       polys[k] = e("path", { d: G.polys[k], fill: "#EEF3F7", stroke: "#FFFFFF", "stroke-width": 1.6,
         style: "cursor:pointer;transition:fill .18s" }, gPoly);
-      polys[k].addEventListener("click", () => { sel = k; render(); });
-      polys[k].addEventListener("mouseenter", () => { polys[k].setAttribute("stroke", "#0E7C86"); });
-      polys[k].addEventListener("mouseleave", () => { polys[k].setAttribute("stroke", "#FFFFFF"); });
+      polys[k].addEventListener("click", () => { sel = k; CH.TIP().style.opacity = 0; render(); });
+      polys[k].addEventListener("mouseenter", (ev) => { polys[k].setAttribute("stroke", "#0E7C86"); showCityTip(k, ev); });
+      polys[k].addEventListener("mousemove", (ev) => showCityTip(k, ev));
+      polys[k].addEventListener("mouseleave", () => {
+        polys[k].setAttribute("stroke", k === sel ? "#0E7C86" : "#FFFFFF");
+        CH.TIP().style.opacity = 0;
+      });
     });
     // 迁徙流
     const flows = (G.flows || []).slice(0, 40);
@@ -100,18 +104,58 @@
         "font-variant-numeric": "tabular-nums", style: "pointer-events:none" }, gLab);
       labels[k] = [t1, t2];
     });
+    /* 悬停城市：一张完整的当日信息卡，而不是把更多字挤进地图标注 */
+    function showCityTip(c, ev) {
+      const ci = D.cities.indexOf(c);
+      if (ci < 0 || !ev) return;
+      const yv = D.series.y[day] ? D.series.y[day][ci] : null;
+      const fv = D.series.f[day] ? D.series.f[day][ci] : null;
+      const rv = D.rt.v[day] ? D.rt.v[day][ci] : null;
+      const bv = (yv === null || fv === null || yv === undefined || fv === undefined) ? null : fv - yv;
+      const rk = D.cities.map((cc, i) => ({ cc, v: currentVal(day, i) }))
+        .filter((z) => z.v !== null && isFinite(z.v)).sort((a, b) => b.v - a.v);
+      const rank = rk.findIndex((z) => z.cc === c) + 1;
+      const rm = (D.metrics.per_city || []).find((z) => z.city === c + "市" || z.city === c) || {};
+      const r0 = (D.r0.city.find((z) => z.city === c) || {}).r0;
+      const row = (lab, val) => "<div class='r'><span>" + lab + "</span><span>" + val + "</span></div>";
+      const tip = CH.TIP();
+      tip.innerHTML = "<div style='font-weight:700;margin-bottom:3px'>" + c + "市 · " + D.dates[day] + "</div>" +
+        row("实测 / 预测", U.fmt(yv, 1) + " / " + U.fmt(fv, 1) + " 例") +
+        row("偏差（预测-实测）", bv === null ? "—" : (bv > 0 ? "+" : "") + U.fmt(bv, 1) + " 例") +
+        row("有效再生数 Rt", U.fmt(rv, 2)) +
+        row("当日" + ({ pred: "预测", obs: "实测", bias: "偏差", rt: "Rt" }[metric]) + "排名", rank ? rank + " / 11" : "—") +
+        row("R0 / 测试段 nRMSE", U.fmt(r0, 2) + " / " + U.pct(rm.nrmse, 1)) +
+        "<div style='color:#8496A6;margin-top:3px'>点击进入城市剖析</div>";
+      tip.style.opacity = 1;
+      const tw = tip.offsetWidth, th = tip.offsetHeight;
+      let L = ev.clientX + 14, T = ev.clientY - th - 10;
+      if (L + tw > innerWidth - 8) L = ev.clientX - tw - 14;
+      if (T < 6) T = ev.clientY + 16;
+      tip.style.left = L + "px"; tip.style.top = T + "px";
+    }
     // 缩放/平移
     const st = { s: 1, tx: 0, ty: 0 };
     function applyT() { gZoom.setAttribute("transform", "translate(" + st.tx + "," + st.ty + ") scale(" + st.s + ")"); syncLabelSize(); }
     function syncLabelSize() {
-      const fs = Math.max(9, 17 / st.s);
+      // 屏幕实际字号 = SVG 字号 × 容器宽 / G.W，按此反推：
+      // 小窗口下也保证名称约 12.5px、数值约 11px，不再随容器等比缩成小号字
+      const k = G.W / Math.max(320, wrap.clientWidth || 700);
+      const fs = Math.max(17, 12.5 * k) / st.s;
       gLab.querySelectorAll("text").forEach((t, i) => {
         t.setAttribute("font-size", i % 2 === 0 ? fs : fs * 0.88);
         t.setAttribute("stroke-width", Math.max(2.0, 3.2 / st.s));
       });
+      // 行距随字号同步调整，避免名称行与数值行叠字
+      Object.keys(labels).forEach((k) => {
+        const c = G.cents[k];
+        if (!c) return;
+        labels[k][0].setAttribute("y", c[1] - fs * 0.30);
+        labels[k][1].setAttribute("y", c[1] + fs * 1.00);
+      });
       gAdj.querySelectorAll("line").forEach((l) => l.setAttribute("stroke-width", 1.1 / st.s));
       gPoly.querySelectorAll("path").forEach((p) => p.setAttribute("stroke-width", 1.6 / st.s));
     }
+    new ResizeObserver(() => syncLabelSize()).observe(wrap);
     wrap.addEventListener("wheel", (ev) => {
       ev.preventDefault();
       const r = svg.getBoundingClientRect();
@@ -124,6 +168,7 @@
     }, { passive: false });
     let drag = null;
     wrap.addEventListener("mousedown", (ev) => { drag = { x: ev.clientX, y: ev.clientY, tx: st.tx, ty: st.ty };
+      CH.TIP().style.opacity = 0;
       wrap.classList.add("drag"); });
     window.addEventListener("mouseup", () => { drag = null; wrap.classList.remove("drag"); });
     window.addEventListener("mousemove", (ev) => {
@@ -215,8 +260,13 @@
         const lab = labels[c];
         if (lab) {
           lab[0].textContent = c;
-          lab[1].textContent = (v === null || !isFinite(v)) ? "—" : (metric === "rt" ? U.fmt(v, 2) : U.fmt(v, metric === "bias" ? 1 : 0));
-          lab[0].setAttribute("fill", darkText ? "#fff" : "#14202B");
+          // 第二行带口径与单位：计数类「例」、Rt 前缀、偏差显式正负号
+          lab[1].textContent = (v === null || !isFinite(v)) ? "—" :
+            metric === "rt" ? "Rt " + U.fmt(v, 2) :
+            (metric === "bias" ? (v > 0 ? "+" : "") + U.fmt(v, 1) + " 例" : U.fmt(v, 0) + " 例");
+          lab[1].style.display = showVal ? "" : "none";
+          lab[0].setAttribute("fill", c === sel && !darkText ? "#0B5A62" : (darkText ? "#fff" : "#14202B"));
+          lab[0].setAttribute("text-decoration", c === sel ? "underline" : "none");
           lab[1].setAttribute("fill", darkText ? "#fff" : "#14202B");
           lab[0].setAttribute("stroke", darkText ? "#14202B" : "#fff");
           lab[1].setAttribute("stroke", darkText ? "#14202B" : "#fff");
@@ -293,6 +343,7 @@
         ["接壤边", () => showAdj, (v) => showAdj = v],
         ["迁徙流", () => showFlow, (v) => showFlow = v],
         ["城市标签", () => showLab, (v) => showLab = v],
+        ["标签数值", () => showVal, (v) => showVal = v],
       ];
       ly.forEach(([lab, get, set]) => {
         row(lab, get(), (e) => { set(!get()); e.currentTarget.classList.toggle("on", get()); render(); });
@@ -310,6 +361,7 @@
         return d;
       });
     }
+    syncLabelSize();
     render();
   });
 })();

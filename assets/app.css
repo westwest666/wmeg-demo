@@ -222,7 +222,7 @@ button{font-family:inherit}
 .clab.sel .n{color:var(--accent)}
 .maptools{position:absolute;right:10px;bottom:10px;display:flex;flex-direction:column;gap:5px;z-index:4}
 .maptools .btn{width:28px;height:28px;padding:0;border-radius:7px;background:#fff;box-shadow:0 1px 5px rgba(20,32,43,.12)}
-.scalebar{position:absolute;left:10px;bottom:10px;font-size:10px;color:var(--tx3);background:rgba(255,255,255,.9);
+.scalebar{position:absolute;left:10px;top:10px;font-size:10px;color:var(--tx3);background:rgba(255,255,255,.9);
   border:1px solid var(--line);border-radius:6px;padding:4px 8px;z-index:4}
 
 /* ---------- 时间轴 ---------- */
