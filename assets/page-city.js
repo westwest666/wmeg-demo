@@ -58,9 +58,12 @@
     }
 
     /* ---------- 主图 ---------- */
+    let logY = false;
     const c1 = U.card(main, (city) + "市 · 拟合与预测", "实测 / WMEG 预测", [
       { label: U.icon("expand"), title: "放大查看", fn: () => openBig() },
       { label: U.icon("csv"), title: "导出当前区间 CSV", fn: () => exportCsv() },
+      { label: "对数", title: "对数坐标：小波次与高峰同时可读（仅显示变换，悬停数值不变）", on: false,
+        fn: (e) => { logY = !logY; e.target.classList.toggle("on", logY); if (chart) { chart.o.logY = logY; chart.draw(); } } },
     ]);
     c1.card.style.flex = "1";
     // 卡片最小高度必须 ≥ 头部+图例+工具条(约 90px) + 图表最小高度，否则底部工具条会被 overflow 裁掉
@@ -140,7 +143,7 @@
       bd.insertBefore(info, d);
       setTimeout(() => {
         const ch = new CH.LineChart(d, { dates: D.dates, series: buildSeries(), splitRanges: WMEG.splitRanges(D),
-          brush: true, zoom: true, xTickN: 16, onSelect: (a, b) => {
+          brush: true, zoom: true, xTickN: 16, logY: logY, onSelect: (a, b) => {
             const s2 = stats(yArr().slice(a, b + 1), fArr().slice(a, b + 1));
             info.innerHTML = "区间 " + D.dates[a] + " → " + D.dates[b] + " · RMSE " + U.fmt(s2.rmse, 2) +
               " · MAE " + U.fmt(s2.mae, 2) + " · nRMSE " + U.pct(s2.nrmse, 1) + " · PCC " + U.fmt(s2.pcc, 3);

@@ -43,6 +43,8 @@
     const c1 = U.card(main, "山西省 · 全省拟合与预测",
       "训练段为拟合，验证/测试段为样本外预测（逐城市建模后求和）", [
         { label: U.icon("expand"), title: "放大", fn: () => openBig() },
+        { label: "对数", title: "对数坐标：早年小波次与近年大峰同时可读（仅显示变换，悬停数值不变）", on: false,
+          fn: (e) => { logY = !logY; e.target.classList.toggle("on", logY); chart.o.logY = logY; chart.draw(); } },
         { label: "机理", title: "叠加机理分支（右轴 · 量级较小）", on: false,
           fn: (e) => { showMech = !showMech; e.target.classList.toggle("on", showMech); chart.setData(D.dates, series()); } },
       ]);
@@ -54,7 +56,7 @@
     c1.card.classList.add("mainchart");
     const box = U.el("div"); box.style.flex = "1 1 auto"; box.style.minHeight = "260px"; box.style.position = "relative";
     c1.bd.appendChild(box);
-    let showMech = false;
+    let showMech = false, logY = false;
     function series() {
       const s = [
         { label: "实测", color: "#1F2A36", width: 2.2, data: D.series.prov.y },
@@ -70,7 +72,7 @@
       const bd = U.modal("山西省 · 全省拟合与预测", () => {});
       const d = U.el("div"); d.style.flex = "1"; d.style.minHeight = "0";
       bd.appendChild(d);
-      setTimeout(() => new CH.LineChart(d, { dates: D.dates, series: series(), splitRanges: splitRanges(D), brush: true, zoom: true, xTickN: 14 }), 30);
+      setTimeout(() => new CH.LineChart(d, { dates: D.dates, series: series(), splitRanges: splitRanges(D), brush: true, zoom: true, xTickN: 14, logY: logY }), 30);
     }
 
     /* ---------- 11 市小多图 ---------- */

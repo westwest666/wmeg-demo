@@ -19,7 +19,7 @@
         { label: "实测 Rt", color: "#2F7FC1", width: 1.1, dash: "4 3", opacity: .8, data: D.rt.obs_prov_s },
       ],
       yFormat: (v) => U.fmt(v, 1), hlines: [{ v: 1, color: "#C2185B", label: "R = 1" }],
-      yMax: 6, onSelect: (a, b) => {}
+      yMax: null, onSelect: (a, b) => {}
     });
     function openBig() {
       const bd = U.modal("山西省 · 有效再生数 Rt", () => {});
@@ -28,7 +28,7 @@
         brush: true, zoom: true, xTickN: 16, padding: [12, 48, 26, 44],
         series: [{ label: "模型 Rt", color: "#8E44C7", width: 1.7, data: D.rt.prov_s },
           { label: "实测 Rt", color: "#2F7FC1", width: 1.1, dash: "4 3", opacity: .8, data: D.rt.obs_prov_s }],
-        yFormat: (v) => U.fmt(v, 1), yMax: 6, hlines: [{ v: 1, color: "#C2185B", label: "R = 1" }] }), 30);
+        yFormat: (v) => U.fmt(v, 1), hlines: [{ v: 1, color: "#C2185B", label: "R = 1" }] }), 30);
     }
 
     const c2 = U.card(main, "11 市 Rt", "点选城市查看详情");

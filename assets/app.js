@@ -200,15 +200,16 @@
       "<div class='navlist' id='navlist'></div>" +
       "<div id='consoleWrap'></div>" +
       "<div class='tail'><button class='collapse' id='collapseBtn' title='收起/展开侧栏'>‹</button>" +
-      "<span class='ver' id='verTxt'>v7 · SPA</span></div>" +
+      "<span class='ver' id='verTxt'>v7 · SPA · 按 1-8 切页</span></div>" +
       "</aside>" +
       "<section class='page' id='page'><div class='main' id='main'></div><div class='rail' id='rail'></div></section>" +
       "</div>";
     const nav = document.getElementById("navlist");
-    PAGES.forEach((p) => {
+    PAGES.forEach((p, pi) => {
       const a = U.el("a", "nav");
       a.id = "nav_" + p.id;
       a.href = "#/" + p.id;
+      a.title = p.label + "（快捷键 " + (pi + 1) + "）";
       a.innerHTML = iconPath(p.icon) + "<span class='lbl'>" + p.label + "</span>";
       nav.appendChild(a);
     });
@@ -342,5 +343,15 @@
     }
     renderShell();
     route();
+    // 数字键 1-8 切换视图；输入控件聚焦或弹窗打开时不劫持按键
+    document.addEventListener("keydown", (e) => {
+      if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
+      const t = (e.target && e.target.tagName) || "";
+      if (t === "INPUT" || t === "TEXTAREA" || t === "SELECT") return;
+      const md = document.querySelector(".modal");
+      if (md && md.classList.contains("on")) return;
+      const n = parseInt(e.key, 10);
+      if (n >= 1 && n <= PAGES.length) { e.preventDefault(); go(PAGES[n - 1].id); }
+    });
   });
 })(window);

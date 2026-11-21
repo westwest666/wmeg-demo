@@ -32,6 +32,17 @@
     if (a >= 10) return v.toFixed(Math.min(d, 1));
     return v.toFixed(d);
   }
+  /* 对数坐标刻度：返回原始病例数刻度（0/1/5/10/50/100…），位置在 log10(v+1) 域计算 */
+  function logTicks(dmaxLog) {
+    const cands = [0, 1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000];
+    const fit = cands.filter((v) => Math.log10(v + 1) <= dmaxLog + 1e-9);
+    if (fit.length <= 6) return fit.length ? fit : [0, 1];
+    const out = [fit[0]], stride = Math.ceil((fit.length - 1) / 5);
+    for (let i = stride; i < fit.length - 1; i += stride) out.push(fit[i]);
+    out.push(fit[fit.length - 1]);
+    return out;
+  }
+
   function niceTicks(min, max, n) {
     n = n || 5;
     if (max - min < 1e-12) { max = min + 1; }
@@ -149,9 +160,13 @@
       if (o.yMax !== null) vmax = o.yMax;
       if (vmax === vmin) { vmax = vmin + 1; }
       const pad = (vmax - vmin) * 0.08;
-      const dmin = o.yMin !== null ? o.yMin : Math.max(0, vmin - pad);
-      const dmax = o.yMax !== null ? o.yMax : vmax + pad;
-      const Y = (v) => y1 - (v - dmin) / (dmax - dmin) * (y1 - y0);
+      let dmin = o.yMin !== null ? o.yMin : Math.max(0, vmin - pad);
+      let dmax = o.yMax !== null ? o.yMax : vmax + pad;
+      // 对数坐标：位置在 log10(v+1) 域，刻度仍标注原始病例数（仅显示变换，数据不变）
+      const logY = !!o.logY;
+      const tf = (v) => logY ? Math.log10(Math.max(0, v) + 1) : v;
+      if (logY) { dmin = 0; dmax = Math.log10(dmax + 1); }
+      const Y = (v) => y1 - (tf(v) - dmin) / (dmax - dmin) * (y1 - y0);
       // 第二轴
       let d2min = 0, d2max = 1, Y2 = (v) => y1;
       if (o.y2) {
@@ -187,9 +202,10 @@
           fill: r.fill || "rgba(232,89,12,.06)" }, this.gGrid);
       });
       // ---- 网格 + Y 轴 ----
-      const ticks = niceTicks(dmin, dmax, o.minimal ? 3 : 5);
+      const ticks = logY ? logTicks(dmax) : niceTicks(dmin, dmax, o.minimal ? 3 : 5);
       ticks.forEach((v) => {
-        if (v < dmin - 1e-9 || v > dmax + 1e-9) return;
+        const tv = logY ? tf(v) : v;   // 对数模式下刻度的上下限比较也在变换域进行
+        if (tv < dmin - 1e-9 || tv > dmax + 1e-9) return;
         const y = Y(v);
         el("line", { x1: x0, x2: x1, y1: y, y2: y }, this.gGrid);
         el("text", { x: x0 - 6, y: y + 3.5, "text-anchor": "end" }, this.gAxis).textContent = o.yFormat(v);
@@ -205,7 +221,8 @@
       }
       // ---- X 轴 ----
       if (o.showX) {
-        const nt = o.minimal ? 3 : o.xTickN;
+        // 刻度数随图宽自适应：窄屏/小视口下避免相邻日期标签叠字
+        const nt = Math.min(o.minimal ? 3 : o.xTickN, Math.max(2, Math.floor((x1 - x0) / 72)));
         const spanN = b - a;
         const fmtX = o.xFormat || ((d) => d ? (spanN < 200 ? d.slice(5, 10) : d.slice(2, 7)) : "");
         let prev = null;
