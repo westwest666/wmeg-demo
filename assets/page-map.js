@@ -110,17 +110,18 @@
       p.setAttribute("class", "flow");
       return p;
     });
-    // 标签
+    // 标签：白底徽章（名称 + 带单位的数值），任何底色上都清晰
     Object.keys(G.cents || {}).forEach((k) => {
       const [x, y] = G.cents[k];
-      const t1 = e("text", { x, y: y - 5, "text-anchor": "middle", "font-size": 17, "font-weight": 800,
-        "letter-spacing": ".5", fill: "#14202B", "paint-order": "stroke", stroke: "#fff", "stroke-width": 3.2,
-        style: "pointer-events:none" }, gLab);
+      const g = e("g", { style: "pointer-events:none" }, gLab);
+      const bg = e("rect", { x: x - 30, y: y - 20, width: 60, height: 40, rx: 8,
+        fill: "rgba(255,255,255,.95)", stroke: "#D7E2EA", "stroke-width": 1,
+        style: "filter:drop-shadow(0 1px 2px rgba(12,22,30,.20))" }, g);
+      const t1 = e("text", { x, y, "text-anchor": "middle", "font-weight": 800, fill: "#14202B" }, g);
       t1.textContent = k;
-      const t2 = e("text", { x, y: y + 15, "text-anchor": "middle", "font-size": 15, "font-weight": 800,
-        fill: "#14202B", "paint-order": "stroke", stroke: "#fff", "stroke-width": 2.2,
-        "font-variant-numeric": "tabular-nums", style: "pointer-events:none" }, gLab);
-      labels[k] = [t1, t2];
+      const t2 = e("text", { x, y, "text-anchor": "middle", "font-weight": 800, fill: "#0B5A62",
+        "font-variant-numeric": "tabular-nums" }, g);
+      labels[k] = [t1, t2, bg];
     });
     /* 悬停城市：一张完整的当日信息卡，而不是把更多字挤进地图标注 */
     function showCityTip(c, ev) {
@@ -154,25 +155,40 @@
     // 缩放/平移
     const st = { s: 1, tx: 0, ty: 0 };
     function applyT() { gZoom.setAttribute("transform", "translate(" + st.tx + "," + st.ty + ") scale(" + st.s + ")"); syncLabelSize(); }
+    let labFs = 20;
     function syncLabelSize() {
       // 屏幕实际字号 = SVG 字号 × 容器宽 / G.W，按此反推：
-      // 小窗口下也保证名称约 12.5px、数值约 11px，不再随容器等比缩成小号字
+      // 名称屏幕约 20px、数值约 17px，窗口再小也不缩水
       const k = G.W / Math.max(320, wrap.clientWidth || 700);
-      const fs = Math.max(20, 18 * k) / st.s;   // 屏幕上名称约 18px、数值约 15px
-      const halo = Math.max(2.4, fs * 0.12);
-      gLab.querySelectorAll("text").forEach((t, i) => {
-        t.setAttribute("font-size", i % 2 === 0 ? fs : fs * 0.83);
-        t.setAttribute("stroke-width", halo);
-      });
-      // 行距随字号同步调整，避免名称行与数值行叠字
+      labFs = Math.max(22, 20 * k) / st.s;
+      layoutLabels();
+      gAdj.querySelectorAll("line").forEach((l) => l.setAttribute("stroke-width", 1.1 / st.s));
+      gPoly.querySelectorAll("path").forEach((p) => p.setAttribute("stroke-width", 1.6 / st.s));
+    }
+    function layoutLabels() {
+      const fs = labFs, vs = fs * 0.85;
       Object.keys(labels).forEach((k) => {
         const c = G.cents[k];
         if (!c) return;
-        labels[k][0].setAttribute("y", c[1] - fs * 0.42);
-        labels[k][1].setAttribute("y", c[1] + fs * 1.05);
+        const t1 = labels[k][0], t2 = labels[k][1], bg = labels[k][2];
+        t1.setAttribute("font-size", fs);
+        t2.setAttribute("font-size", vs);
+        const showV = showVal && t2.style.display !== "none";
+        const padX = fs * 0.42, padY = fs * 0.28;
+        const w1 = t1.getComputedTextLength ? t1.getComputedTextLength() : fs * 2;
+        const w2 = showV && t2.getComputedTextLength ? t2.getComputedTextLength() : 0;
+        const w = Math.max(w1, w2) + padX * 2;
+        const h = fs + (showV ? vs * 1.25 : 0) + padY * 2;
+        const cx = c[0], cy = c[1];
+        bg.setAttribute("x", cx - w / 2); bg.setAttribute("y", cy - h / 2);
+        bg.setAttribute("width", w); bg.setAttribute("height", h);
+        bg.setAttribute("rx", Math.min(10, h * 0.22));
+        bg.setAttribute("stroke", k === sel ? "#0E7C86" : "#D7E2EA");
+        bg.setAttribute("stroke-width", k === sel ? 1.8 : 1);
+        t1.setAttribute("x", cx); t2.setAttribute("x", cx);
+        t1.setAttribute("y", showV ? cy - vs * 0.28 : cy + fs * 0.35);
+        t2.setAttribute("y", cy + h / 2 - padY - vs * 0.12);
       });
-      gAdj.querySelectorAll("line").forEach((l) => l.setAttribute("stroke-width", 1.1 / st.s));
-      gPoly.querySelectorAll("path").forEach((p) => p.setAttribute("stroke-width", 1.6 / st.s));
     }
     new ResizeObserver(() => syncLabelSize()).observe(wrap);
     wrap.addEventListener("wheel", (ev) => {
@@ -267,9 +283,6 @@
         const v = currentVal(day, ci);
         const t = scale(v);
         const fillC = (v === null || !isFinite(v)) ? "#EEF3F7" : heatColor(metric === "bias" ? Math.abs(t) : t);
-        const _rgb = (fillC.match(/\d+/g) || [240, 240, 240]).map(Number);
-        const _lum = (0.299 * _rgb[0] + 0.587 * _rgb[1] + 0.114 * _rgb[2]) / 255;
-        const darkText = _lum < 0.62;
         if (polys[c]) {
           polys[c].setAttribute("fill", fillC);
           polys[c].style.opacity = (sel && sel !== c) ? 0.96 : 1;
@@ -278,17 +291,14 @@
         }
         const lab = labels[c];
         if (lab) {
-          lab[0].textContent = c;
           // 第二行带口径与单位：计数类「例」、Rt 前缀、偏差显式正负号
           lab[1].textContent = (v === null || !isFinite(v)) ? "—" :
             metric === "rt" ? "Rt " + U.fmt(v, 2) :
             (metric === "bias" ? (v > 0 ? "+" : "") + U.fmt(v, 1) + " 例" : U.fmt(v, 0) + " 例");
           lab[1].style.display = showVal ? "" : "none";
-          lab[0].setAttribute("fill", c === sel && !darkText ? "#0B5A62" : (darkText ? "#fff" : "#14202B"));
-          lab[0].setAttribute("text-decoration", c === sel ? "underline" : "none");
-          lab[1].setAttribute("fill", darkText ? "#fff" : "#14202B");
-          lab[0].setAttribute("stroke", darkText ? "#14202B" : "#fff");
-          lab[1].setAttribute("stroke", darkText ? "#14202B" : "#fff");
+          lab[0].setAttribute("fill", c === sel ? "#0B5A62" : "#14202B");
+          lab[1].setAttribute("fill", metric === "rt" ? "#8E44C7" :
+            (metric === "bias" ? (v > 0 ? "#C2410C" : "#1D4ED8") : "#0B5A62"));
         }
         const yv = D.series.y[day] ? D.series.y[day][ci] : null, fv = D.series.f[day] ? D.series.f[day][ci] : null;
         if (yv !== null) sumO += yv; if (fv !== null) sumP += fv;
@@ -303,6 +313,7 @@
       scalebar.style.padding = "6px 12px";
       scalebar.querySelector(".sb-t").textContent = ["预测值", "实测值", "偏差(预测-实测)", "Rt"][["pred", "obs", "bias", "rt"].indexOf(metric)] + " · 色阶";
       scalebar.querySelector(".sb-max").textContent = U.fmt(MX, metric === "rt" ? 2 : 0);
+      layoutLabels();
       renderRail();
     }
     /* ---------- 右栏 ---------- */
