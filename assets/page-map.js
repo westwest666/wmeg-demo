@@ -168,10 +168,12 @@
     function applyT() { gZoom.setAttribute("transform", "translate(" + st.tx + "," + st.ty + ") scale(" + st.s + ")"); syncLabelSize(); }
     let labFs = 20;
     function syncLabelSize() {
-      // 屏幕实际字号 = SVG 字号 × 容器宽 / G.W，按此反推：
-      // 名称屏幕约 20px、数值约 17px，窗口再小也不缩水
-      const k = G.W / Math.max(320, wrap.clientWidth || 700);
-      labFs = Math.max(22, 20 * k) / st.s;
+      // viewBox 默认 meet 缩放，实际比例受「宽/高中较小的那个」限制。
+      // 宽屏下往往被高度限制，只按宽度反推会把标签算小（你 1920 截图里就是这样）。
+      // 用真实缩放系数反推：任何窗口下名称恒为屏幕约 22px、数值约 19px。
+      const r = svg.getBoundingClientRect();
+      const sc = Math.max(0.05, Math.min((r.width || 700) / G.W, (r.height || 600) / G.H));
+      labFs = 22 / sc / st.s;
       layoutLabels();
       gAdj.querySelectorAll("line").forEach((l) => l.setAttribute("stroke-width", 1.1 / st.s));
       gPoly.querySelectorAll("path").forEach((p) => p.setAttribute("stroke-width", 1.6 / st.s));
