@@ -26,13 +26,24 @@
       return t;
     })();
     let playing = false, timer = null, sel = ctx.STORE.city;
+    const playBtns = [];
+    let alive = true;
+    // 切到别的视图后立即停止播放，避免后台空转
+    window.addEventListener("hashchange", () => { alive = false; clearInterval(timer); playing = false; }, { once: true });
+    function setPlaying(on) {
+      if (!alive) return;
+      playing = on;
+      playBtns.forEach((b) => { b.classList.toggle("on", on); b.textContent = on ? "❚❚" : "▶"; });
+      tick();
+    }
 
     /* ---------- 地图 ---------- */
     const card = U.card(main, "山西省 11 地级市 · 时空传播", "色阶随「着色」切换 · 时间轴逐日回放 · 悬停城市查看详情", []);
     card.tools.appendChild((function () {
       const b = U.el("button", "ico", "▶");
-      b.title = "播放 / 暂停";
-      b.onclick = () => { playing = !playing; b.classList.toggle("on", playing); b.textContent = playing ? "❚❚" : "▶"; tick(); };
+      b.title = "播放 / 暂停（空格键同效，时间轴上也有播放键）";
+      b.onclick = () => setPlaying(!playing);
+      playBtns.push(b);
       return b;
     })());
     card.tools.appendChild((function () {
@@ -234,6 +245,12 @@
     /* ---------- 时间轴 ---------- */
     const tl = U.el("div", "timeline");
     tl.style.borderTop = "1px solid var(--line)";
+    // 时间轴上的圆形播放键（与卡片右上角播放键状态同步）
+    const playBtn = U.el("button", "play", "▶");
+    playBtn.title = "逐日播放 / 暂停（空格键）";
+    playBtn.onclick = () => setPlaying(!playing);
+    playBtns.push(playBtn);
+    tl.appendChild(playBtn);
     const dayTxt = U.el("div", "day", "");
     const range = document.createElement("input"); range.type = "range";
     range.min = 0; range.max = n - 1; range.value = day;
@@ -241,6 +258,14 @@
     tl.appendChild(dayTxt); tl.appendChild(range); tl.appendChild(tot);
     card.bd.appendChild(tl);
     range.oninput = () => { day = +range.value; render(); };
+    // 空格播放 / 暂停（输入控件聚焦时不劫持）
+    document.addEventListener("keydown", (ev) => {
+      if (!alive || ev.code !== "Space") return;
+      const t = (ev.target && ev.target.tagName) || "";
+      if (t === "INPUT" || t === "TEXTAREA" || t === "SELECT") return;
+      ev.preventDefault();
+      setPlaying(!playing);
+    });
     function tick() {
       clearInterval(timer);
       if (!playing) return;

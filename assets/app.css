@@ -236,9 +236,10 @@ button{font-family:inherit}
 input[type=range]{-webkit-appearance:none;appearance:none;flex:1;height:4px;border-radius:3px;background:#D9E3EB;outline:none}
 input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:15px;height:15px;border-radius:50%;
   background:var(--accent);border:2px solid #fff;box-shadow:0 1px 5px rgba(14,124,134,.45);cursor:pointer}
-.play{width:30px;height:30px;border-radius:50%;border:1px solid var(--line);background:#fff;cursor:pointer;
-  color:var(--accent);display:flex;align-items:center;justify-content:center;font-size:11px}
+.play{width:34px;height:34px;flex:0 0 auto;border-radius:50%;border:1px solid var(--line);background:#fff;cursor:pointer;
+  color:var(--accent);display:flex;align-items:center;justify-content:center;font-size:12px}
 .play:hover{background:var(--accent-soft)}
+.play.on{background:var(--accent);color:#fff;border-color:var(--accent)}
 
 /* ---------- 列表 / 表格 ---------- */
 .list{display:flex;flex-direction:column;gap:1px;overflow:auto;min-height:0}
