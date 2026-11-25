@@ -201,13 +201,16 @@
       syncLabelSize();
     }
     let labFs = 20;
+    const LAB_UNIT = 58;   // 名称字号基准：viewBox 宽（1000）的 5.8%，固定写在地图坐标里
     function syncLabelSize() {
-      // viewBox 默认 meet 缩放，实际比例受「宽/高中较小的那个」限制。
-      // 宽屏下往往被高度限制，只按宽度反推会把标签算小（你 1920 截图里就是这样）。
-      // 用真实缩放系数反推：任何窗口下名称恒为屏幕约 22px、数值约 19px。
+      // 标注随地图同步缩放：字号在地图坐标里固定，屏幕上的大小 = 58 × 真实 meet 缩放 × 缩放倍数。
+      // 地图大标注就大、地图小标注就小 —— 小地图里徽章不再互相压住（最近城市对纵向间距 185 单位，
+      // 58 单位字号的徽章高约 152 单位，留有余量）。
+      // 再夹在 11–30px：极小窗口下仍可读，全屏或放大时不会大到盖住城市。
       const r = wrap.getBoundingClientRect();
       const sc = Math.max(0.05, Math.min((r.width || 700) / G.W, (r.height || 600) / G.H));
-      labFs = 22 / sc / st.s;
+      const k = sc * st.s;
+      labFs = Math.max(11, Math.min(30, LAB_UNIT * k)) / k;
       layoutLabels();
       gAdj.querySelectorAll("line").forEach((l) => l.setAttribute("stroke-width", 1.1 / st.s));
       syncStroke();

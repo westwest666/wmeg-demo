@@ -166,8 +166,10 @@
     const params = Object.assign(currentParams(), extra || {});
     if (extra && extra.run === null) delete params.run;
     const h = buildHash(view, params);
-    if (location.hash === h) route();
-    else location.hash = h;
+    if (location.hash === h) { route(); return; }
+    // 站内切页用 replaceState：不往浏览器历史里压新记录（原来赋 location.hash 每点一次就多一条历史）
+    history.replaceState(null, "", h);
+    route();
   }
   function setParam(k, v) {
     const params = currentParams();
@@ -215,6 +217,13 @@
       a.href = "#/" + p.id;
       a.title = p.label + "（快捷键 " + (pi + 1) + "）";
       a.innerHTML = iconPath(p.icon) + "<span class='lbl'>" + p.label + "</span>";
+      a.addEventListener("click", (ev) => {
+        // 普通左键点击走 go()：不新增历史记录、且保留地址里的 run 参数；
+        // Ctrl/⌘/Shift/中键 仍交给浏览器，保留「在新标签打开」的能力
+        if (ev.button !== 0 || ev.ctrlKey || ev.metaKey || ev.shiftKey || ev.altKey) return;
+        ev.preventDefault();
+        go(p.id);
+      });
       nav.appendChild(a);
     });
     const sel = document.getElementById("runSel");
