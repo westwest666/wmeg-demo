@@ -197,8 +197,10 @@
     _buildOverlay() {
       const o = this.o, g = this.gOv;
       const hit = el("rect", { class: "hit", fill: "transparent", style: "cursor:crosshair" }, g);
-      const hl = el("line", { class: "hover-line", x1: 0, x2: 0, opacity: 0 }, g);
-      const br = el("rect", { class: "brush", x: 0, width: 0, opacity: 0 }, g);
+      const hl = el("line", { class: "hover-line", x1: 0, x2: 0, opacity: 0, style: "pointer-events:none" }, g);
+      // 框选矩形默认填充为黑、opacity 0 仍会拦截鼠标：一旦留下宽度就会盖死命中层，
+      // 导致第一次框选之后悬停/框选/滚轮全部失效 → 必须 pointer-events:none
+      const br = el("rect", { class: "brush", x: 0, width: 0, opacity: 0, style: "pointer-events:none" }, g);
       this.gDot = el("g", {}, g);
       this._hover = { hit, hl };
       this._brush = br;
@@ -709,6 +711,133 @@
     const m = c.replace("#", "");
     return [parseInt(m.substr(0, 2), 16), parseInt(m.substr(2, 2), 16), parseInt(m.substr(4, 2), 16)];
   }
+  /* ---------- 区间滑动条：全范围缩略曲线 + 双把手缩放 + 窗内平移 + 空白处拖出新窗 ----------
+     与主图双向同步：onChange 驱动 chart.setRange；chart 的 brush/滚轮/预设经页面回写 setRange */
+  class RangeSlider {
+    constructor(host, opts) {
+      this.o = Object.assign({ height: 46, minSpan: 7, onChange: null, series: [] }, opts || {});
+      this.host = host;
+      const n = this.o.dates.length;
+      this.a = Math.max(0, this.o.a || 0);
+      this.b = Math.min(n - 1, this.o.b === undefined ? n - 1 : this.o.b);
+      this.svg = el("svg", { preserveAspectRatio: "none",
+        style: "display:block;width:100%;height:" + this.o.height + "px;cursor:crosshair;touch-action:none" }, host);
+      this.svg.setAttribute("height", this.o.height);
+      this.gBase = el("g", {}, this.svg);
+      this.gWin = el("g", {}, this.svg);
+      this.maskL = el("rect", { y: 0, height: this.o.height, fill: "rgba(244,248,250,.78)" }, this.gWin);
+      this.maskR = el("rect", { y: 0, height: this.o.height, fill: "rgba(244,248,250,.78)" }, this.gWin);
+      this.win = el("rect", { y: 1, height: this.o.height - 2, rx: 3, fill: "rgba(14,124,134,.08)",
+        stroke: "#0E7C86", "stroke-width": 1, style: "cursor:grab" }, this.gWin);
+      this.hL = this._handle(); this.hR = this._handle();
+      this._drag = null; this._raf = 0;
+      this._down = (ev) => {
+        if (ev.button !== 0) return;
+        ev.preventDefault();
+        const t = ev.target, i = this._idx(ev);
+        let mode = "new";
+        if (this.hL.contains(t)) mode = "l";
+        else if (this.hR.contains(t)) mode = "r";
+        else if (t === this.win) mode = "pan";
+        this._drag = { mode, i0: i, a0: this.a, b0: this.b };
+        if (mode === "new") { this.a = i; this.b = i; }
+        if (mode === "pan") this.win.style.cursor = "grabbing";
+        this._queue();
+      };
+      this._move = (ev) => {
+        const d = this._drag; if (!d) return;
+        const i = this._idx(ev), n1 = this.o.dates.length - 1, ms = this.o.minSpan;
+        if (d.mode === "l") this.a = Math.max(0, Math.min(i, this.b - ms));
+        else if (d.mode === "new") { this.a = Math.min(d.i0, i); this.b = Math.max(d.i0, i); }
+        else if (d.mode === "r") this.b = Math.min(n1, Math.max(i, this.a + ms));
+        else {
+          const span = d.b0 - d.a0;
+          const a = Math.max(0, Math.min(n1 - span, d.a0 + (i - d.i0)));
+          this.a = a; this.b = a + span;
+        }
+        this._queue();
+      };
+      this._up = () => {
+        const d = this._drag; if (!d) return;
+        this._drag = null; this.win.style.cursor = "grab";
+        if (this.b - this.a < this.o.minSpan) {
+          const n1 = this.o.dates.length - 1, c = Math.round((this.a + this.b) / 2);
+          this.a = Math.max(0, Math.min(n1 - this.o.minSpan, c - Math.floor(this.o.minSpan / 2)));
+          this.b = this.a + this.o.minSpan;
+        }
+        this._paint();
+        if (this.o.onChange) this.o.onChange(this.a, this.b);
+      };
+      this.svg.addEventListener("pointerdown", this._down);
+      window.addEventListener("pointermove", this._move);
+      window.addEventListener("pointerup", this._up);
+      this.obs = new ResizeObserver(() => this.draw());
+      this.obs.observe(host);
+      track(this);
+      this.draw();
+    }
+    _handle() {
+      const g = el("g", { style: "cursor:ew-resize" }, this.gWin);
+      el("rect", { x: -4, y: -9, width: 8, height: 18, rx: 3, fill: "#0E7C86" }, g);
+      el("line", { x1: -1.3, x2: -1.3, y1: -4, y2: 4, stroke: "#fff", "stroke-width": 1 }, g);
+      el("line", { x1: 1.3, x2: 1.3, y1: -4, y2: 4, stroke: "#fff", "stroke-width": 1 }, g);
+      return g;
+    }
+    _idx(ev) {
+      const r = this.svg.getBoundingClientRect();
+      const t = (ev.clientX - r.left - 4) / Math.max(1, r.width - 8);
+      return Math.max(0, Math.min(this.o.dates.length - 1, Math.round(t * (this.o.dates.length - 1))));
+    }
+    _queue() {
+      if (this._raf) return;
+      this._raf = requestAnimationFrame(() => {
+        this._raf = 0; this._paint();
+        if (this.o.onChange) this.o.onChange(this.a, this.b);
+      });
+    }
+    setRange(a, b) {
+      const n1 = this.o.dates.length - 1;
+      this.a = Math.max(0, Math.min(n1, a)); this.b = Math.max(this.a, Math.min(n1, b));
+      this._paint();
+    }
+    setData(series) { if (series) this.o.series = series; this.draw(); }
+    draw() {
+      const w = this.host.clientWidth || 600, h = this.o.height, n = this.o.dates.length;
+      this._w = w;
+      this._X = (i) => 4 + (w - 8) * (n > 1 ? i / (n - 1) : 0);
+      this.svg.setAttribute("width", w);
+      this.gBase.textContent = "";
+      el("rect", { x: 0, y: 0, width: w, height: h, fill: "#F4F8FA", rx: 4 }, this.gBase);
+      const maxPts = Math.max(60, Math.floor(w * 1.5));
+      let mx = 0;
+      this.o.series.forEach((s) => s.data.forEach((v) => { if (v !== null && isFinite(v) && v > mx) mx = v; }));
+      mx = mx || 1;
+      const Y = (v) => h - 4 - (h - 10) * (v / mx);
+      this.o.series.forEach((s) => {
+        const r = lineD(s.data, 0, n - 1, this._X, Y, maxPts);
+        if (r.d) el("path", { d: r.d, fill: "none", stroke: s.color, "stroke-width": 1, opacity: .75 }, this.gBase);
+      });
+      this._paint();
+    }
+    _paint() {
+      if (!this._X) return;
+      const w = this._w || this.host.clientWidth || 600, h = this.o.height;
+      const xa = this._X(this.a), xb = this._X(this.b);
+      this.maskL.setAttribute("x", 0); this.maskL.setAttribute("width", Math.max(0, xa));
+      this.maskR.setAttribute("x", xb); this.maskR.setAttribute("width", Math.max(0, w - xb));
+      this.win.setAttribute("x", xa); this.win.setAttribute("width", Math.max(2, xb - xa));
+      this.hL.setAttribute("transform", "translate(" + xa + "," + (h / 2) + ")");
+      this.hR.setAttribute("transform", "translate(" + xb + "," + (h / 2) + ")");
+    }
+    destroy() {
+      if (this._raf) cancelAnimationFrame(this._raf);
+      this.svg.removeEventListener("pointerdown", this._down);
+      window.removeEventListener("pointermove", this._move);
+      window.removeEventListener("pointerup", this._up);
+      this._drag = null;
+    }
+  }
+
   function legend(items) {
     return "<div class='legend'>" + items.map((it) =>
       "<span>" + (it.ring ? "<i class='dot' style='background:#fff;border:2px solid " + it.color + ";box-sizing:border-box'></i>"
@@ -716,7 +845,7 @@
         : it.dash ? "<i style='background:repeating-linear-gradient(90deg," + it.color + " 0 4px,transparent 4px 7px)'></i>"
         : "<i style='background:" + it.color + "'></i>") + it.label + "</span>").join("") + "</div>";
   }
-  global.CH = { LineChart, Heatmap, Bars, Scatter, legend, fmt, TIP, tipWrite, niceTicks, el, h, teardown, teardownIn, placeTip };
+  global.CH = { LineChart, Heatmap, Bars, Scatter, RangeSlider, legend, fmt, TIP, tipWrite, niceTicks, el, h, teardown, teardownIn, placeTip };
   global.CH._live = LIVE;
   global.Chart = global.CH;   // 兼容别名（app.js 里用 Chart.*）
 })(window);

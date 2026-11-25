@@ -59,7 +59,7 @@
     }
 
     /* ---------- 主图 ---------- */
-    let logY = false;
+    let logY = false, slider = null;
     const c1 = U.card(main, (city) + "市 · 拟合与预测", "实测 / WMEG 预测", [
       { label: U.icon("expand"), title: "放大查看", fn: () => openBig() },
       { label: U.icon("csv"), title: "导出当前区间 CSV", fn: () => exportCsv() },
@@ -68,7 +68,7 @@
     ]);
     c1.card.style.flex = "1";
     // 卡片最小高度必须 ≥ 头部+图例+工具条(约 90px) + 图表最小高度，否则底部工具条会被 overflow 裁掉
-    c1.card.style.minHeight = "330px";
+    c1.card.style.minHeight = "380px";
     const legendBox = U.el("div", "", CH.legend([
       { label: "实测", color: "#1F2A36", dot: true }, { label: "WMEG 预测", color: "#E8590C", ring: true },
       { label: "训练/验证/测试", color: "#EDF3F7" }]));
@@ -82,6 +82,15 @@
         onSelect: (a, b) => { view = { a, b }; syncRangeLabel(); if (typeof setActive === "function") setActive(null); }
       });
       chart.setRange(view.a, view.b);
+      // 区间滑动条：全范围缩略 + 双把手 + 平移，拖拽即改主图区间（与 brush/滚轮/预设/日期框双向同步）
+      const sbox = U.el("div");
+      sbox.style.cssText = "height:46px;flex:none;margin:0 2px 4px";
+      c1.bd.appendChild(sbox);
+      slider = new CH.RangeSlider(sbox, {
+        dates: D.dates, a: view.a, b: view.b,
+        series: [{ data: yArr(), color: "#1F2A36" }, { data: fArr(), color: "#E8590C" }],
+        onChange: (a, b) => { view = { a, b }; chart.setRange(a, b); syncRangeLabel(); setActive(null); }
+      });
     }, 20);
 
     /* ---------- 区间工具条 ---------- */
@@ -127,6 +136,7 @@
       din.value = D.dates[view.a] || ""; din2.value = D.dates[view.b] || "";
       rangeTxt.innerHTML = "<b>" + (D.dates[view.a] || "") + "</b> → <b>" + (D.dates[view.b] || "") +
         "</b> · " + (view.b - view.a + 1) + " 天";
+      if (slider) slider.setRange(view.a, view.b);
     }
     applyBtn.onclick = () => {
       const a = D.dates.indexOf(din.value), b = D.dates.indexOf(din2.value);
@@ -317,6 +327,7 @@
           window.WMEG.setParam("city", c);
           c1.hd.querySelector("h3").textContent = c + "市 · 拟合与预测";
           chart.setData(D.dates, buildSeries());
+          if (slider) slider.setData([{ data: yArr(), color: "#1F2A36" }, { data: fArr(), color: "#E8590C" }]);
           renderRail();
         };
         list.appendChild(row);
