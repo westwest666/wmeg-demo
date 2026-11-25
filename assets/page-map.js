@@ -10,6 +10,7 @@
     return "rgb(" + a.map((v, k) => Math.round(v + (b[k] - v) * f)).join(",") + ")";
   }
   window.WMEG.heatColor = heatColor;
+  const MET = { pred: "预测", obs: "实测", bias: "偏差", rt: "Rt" };
 
   window.WMEG.register("map", function (main, rail, ctx) {
     const D = ctx.D, G = D.map, U2 = U;
@@ -28,14 +29,9 @@
     let playing = false, timer = null, sel = ctx.STORE.city;
     const playBtns = [];
     let alive = true;
-    // 切到别的视图后立即停止播放，避免后台空转
-    window.addEventListener("hashchange", () => { alive = false; clearInterval(timer); playing = false; }, { once: true });
-    function setPlaying(on) {
-      if (!alive) return;
-      playing = on;
-      playBtns.forEach((b) => { b.classList.toggle("on", on); b.textContent = on ? "❚❚" : "▶"; });
-      tick();
-    }
+    const REDUCED = !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+    // 属性只在值变化时写入：播放时每帧百余次「写同一个值」也会让整张 SVG 反复失效
+    function setA(node, k, v) { const s = String(v); if (node.getAttribute(k) !== s) node.setAttribute(k, s); }
 
     /* ---------- 地图 ---------- */
     const card = U.card(main, "山西省 11 地级市 · 时空传播", "色阶随「着色」切换 · 时间轴逐日回放 · 悬停城市查看详情", []);
@@ -63,32 +59,42 @@
       };
       return b;
     })());
-    document.addEventListener("keydown", (ev) => {
+    const onKeyEsc = (ev) => {
       if (ev.key === "Escape" && card.card.classList.contains("fullmap")) {
         card.card.classList.remove("fullmap");
         document.body.style.overflow = "";
         setTimeout(syncLabelSize, 60);
       }
-    });
+    };
+    document.addEventListener("keydown", onKeyEsc);
     card.card.style.flex = "1";
     card.card.style.minHeight = "0";
     const wrap = U.el("div", "mapwrap");
     wrap.style.minHeight = "420px";
     card.bd.appendChild(wrap);
-    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-    svg.setAttribute("viewBox", "0 0 " + G.W + " " + G.H);
-    wrap.appendChild(svg);
     const NS = "http://www.w3.org/2000/svg";
+    // 地图拆成三层独立 SVG：底图（接壤边 + 多边形）/ 迁徙流 / 标签。
+    // 流动线动画只重绘自己这一层；播放时多边形填色也不会带着标签和流动线一起重画。
+    function mkLayer(cls) {
+      const s = document.createElementNS(NS, "svg");
+      s.setAttribute("class", cls);
+      s.setAttribute("viewBox", "0 0 " + G.W + " " + G.H);
+      const gz = document.createElementNS(NS, "g");
+      s.appendChild(gz);
+      wrap.appendChild(s);
+      return { svg: s, gz };
+    }
+    const L0 = mkLayer("mv-base"), L1 = mkLayer("mv-flow"), L2 = mkLayer("mv-lab");
+    const svg = L0.svg, gZoom = L0.gz;
     function e(tag, attrs, par) {
       const x = document.createElementNS(NS, tag);
       for (const k in attrs) x.setAttribute(k, attrs[k]);
-      (par || svg).appendChild(x); return x;
+      (par || gZoom).appendChild(x); return x;
     }
-    const gZoom = e("g", {});
-    const gAdj = e("g", {}, gZoom);
-    const gPoly = e("g", {}, gZoom);
-    const gFlow = e("g", {}, gZoom);
-    const gLab = e("g", {}, gZoom);
+    const gAdj = e("g", {});
+    const gPoly = e("g", {});
+    const gFlow = e("g", {}, L1.gz);
+    const gLab = e("g", {}, L2.gz);
     (G.edges || []).forEach(([a, b]) => {
       const ca = G.cents[a], cb = G.cents[b];
       if (!ca || !cb) return;
@@ -98,7 +104,7 @@
     const polys = {}, labels = {}, vals = {};
     Object.keys(G.polys || {}).forEach((k) => {
       polys[k] = e("path", { d: G.polys[k], fill: "#EEF3F7", stroke: "#FFFFFF", "stroke-width": 1.6,
-        style: "cursor:pointer;transition:fill .18s" }, gPoly);
+        class: "mappoly" }, gPoly);
       polys[k].addEventListener("click", () => { sel = k; CH.TIP().style.opacity = 0; render(); });
       polys[k].addEventListener("mouseenter", (ev) => { polys[k].setAttribute("stroke", "#0E7C86"); showCityTip(k, ev); });
       polys[k].addEventListener("mousemove", (ev) => showCityTip(k, ev));
@@ -121,6 +127,27 @@
       p.setAttribute("class", "flow");
       return p;
     });
+    // 流动动画：由脚本按动画时钟推进虚线相位（约 30 次/秒，速度与原 CSS 动画一致）。
+    // 图层关闭、页面切到后台或离开本页时停表，不再让整张地图为了虚线流动而每帧重绘。
+    let flowRaf = 0, flowT = 0, flowOff = 0;
+    const FLOW_UNIT = 28, FLOW_SPEED = 20;   // 1.4s 走 28 个单位
+    function flowFrame(t) {
+      flowRaf = 0;
+      if (!alive || document.hidden || !showFlow) { flowT = 0; return; }
+      if (!flowT) { flowT = t; flowRaf = requestAnimationFrame(flowFrame); return; }
+      if (t - flowT >= 30) {
+        flowOff = (flowOff + (t - flowT) / 1000 * FLOW_SPEED) % FLOW_UNIT;
+        flowT = t;
+        gFlow.setAttribute("stroke-dashoffset", (-flowOff).toFixed(2));
+      }
+      flowRaf = requestAnimationFrame(flowFrame);
+    }
+    function startFlow() {
+      if (REDUCED || !alive || flowRaf || document.hidden || !showFlow) return;
+      flowRaf = requestAnimationFrame(flowFrame);
+    }
+    const onVis = () => { if (!document.hidden) startFlow(); };
+    document.addEventListener("visibilitychange", onVis);
     // 标签：白底徽章（名称 + 带单位的数值），任何底色上都清晰
     Object.keys(G.cents || {}).forEach((k) => {
       const [x, y] = G.cents[k];
@@ -134,76 +161,103 @@
         "font-variant-numeric": "tabular-nums" }, g);
       labels[k] = [t1, t2, bg];
     });
-    /* 悬停城市：一张完整的当日信息卡，而不是把更多字挤进地图标注 */
+    /* 悬停城市：一张完整的当日信息卡，而不是把更多字挤进地图标注。
+       同一天同一城市只拼一次 HTML，鼠标移动时只挪位置 */
+    let tipKey = "";
     function showCityTip(c, ev) {
       const ci = D.cities.indexOf(c);
       if (ci < 0 || !ev) return;
-      const yv = D.series.y[day] ? D.series.y[day][ci] : null;
-      const fv = D.series.f[day] ? D.series.f[day][ci] : null;
-      const rv = D.rt.v[day] ? D.rt.v[day][ci] : null;
-      const bv = (yv === null || fv === null || yv === undefined || fv === undefined) ? null : fv - yv;
-      const rk = D.cities.map((cc, i) => ({ cc, v: currentVal(day, i) }))
-        .filter((z) => z.v !== null && isFinite(z.v)).sort((a, b) => b.v - a.v);
-      const rank = rk.findIndex((z) => z.cc === c) + 1;
-      const rm = (D.metrics.per_city || []).find((z) => z.city === c + "市" || z.city === c) || {};
-      const r0 = (D.r0.city.find((z) => z.city === c) || {}).r0;
-      const row = (lab, val) => "<div class='r'><span>" + lab + "</span><span>" + val + "</span></div>";
       const tip = CH.TIP();
-      tip.innerHTML = "<div style='font-weight:700;margin-bottom:3px'>" + c + "市 · " + D.dates[day] + "</div>" +
-        row("实测 / 预测", U.fmt(yv, 1) + " / " + U.fmt(fv, 1) + " 例") +
-        row("偏差（预测-实测）", bv === null ? "—" : (bv > 0 ? "+" : "") + U.fmt(bv, 1) + " 例") +
-        row("有效再生数 Rt", U.fmt(rv, 2)) +
-        row("当日" + ({ pred: "预测", obs: "实测", bias: "偏差", rt: "Rt" }[metric]) + "排名", rank ? rank + " / 11" : "—") +
-        row("R0 / 测试段 nRMSE", U.fmt(r0, 2) + " / " + U.pct(rm.nrmse, 1)) +
-        "<div style='color:#8496A6;margin-top:3px'>点击进入城市剖析</div>";
+      const key = c + "|" + day + "|" + metric;
+      // 提示框被右栏迷你图写过之后，即使日期城市没变也要重拼
+      if (key !== tipKey || tip._own !== "map") {
+        tipKey = key;
+        const yv = D.series.y[day] ? D.series.y[day][ci] : null;
+        const fv = D.series.f[day] ? D.series.f[day][ci] : null;
+        const rv = D.rt.v[day] ? D.rt.v[day][ci] : null;
+        const bv = (yv === null || fv === null || yv === undefined || fv === undefined) ? null : fv - yv;
+        const rk = D.cities.map((cc, i) => ({ cc, v: currentVal(day, i) }))
+          .filter((z) => z.v !== null && isFinite(z.v)).sort((a, b) => b.v - a.v);
+        const rank = rk.findIndex((z) => z.cc === c) + 1;
+        const rm = (D.metrics.per_city || []).find((z) => z.city === c + "市" || z.city === c) || {};
+        const r0 = (D.r0.city.find((z) => z.city === c) || {}).r0;
+        const row = (lab, val) => "<div class='r'><span>" + lab + "</span><span>" + val + "</span></div>";
+        CH.tipWrite(tip, "<div style='font-weight:700;margin-bottom:3px'>" + c + "市 · " + D.dates[day] + "</div>" +
+          row("实测 / 预测", U.fmt(yv, 1) + " / " + U.fmt(fv, 1) + " 例") +
+          row("偏差（预测-实测）", bv === null ? "—" : (bv > 0 ? "+" : "") + U.fmt(bv, 1) + " 例") +
+          row("有效再生数 Rt", U.fmt(rv, 2)) +
+          row("当日" + MET[metric] + "排名", rank ? rank + " / 11" : "—") +
+          row("R0 / 测试段 nRMSE", U.fmt(r0, 2) + " / " + U.pct(rm.nrmse, 1)) +
+          "<div style='color:#8496A6;margin-top:3px'>点击进入城市剖析</div>", "map");
+      }
       tip.style.opacity = 1;
-      const tw = tip.offsetWidth, th = tip.offsetHeight;
-      let L = ev.clientX + 14, T = ev.clientY - th - 10;
-      if (L + tw > innerWidth - 8) L = ev.clientX - tw - 14;
-      if (T < 6) T = ev.clientY + 16;
-      tip.style.left = L + "px"; tip.style.top = T + "px";
+      CH.placeTip(tip, ev.clientX, ev.clientY);
     }
     // 缩放/平移
     const st = { s: 1, tx: 0, ty: 0 };
-    function applyT() { gZoom.setAttribute("transform", "translate(" + st.tx + "," + st.ty + ") scale(" + st.s + ")"); syncLabelSize(); }
+    function applyT() {
+      const tr = "translate(" + st.tx + "," + st.ty + ") scale(" + st.s + ")";
+      L0.gz.setAttribute("transform", tr); L1.gz.setAttribute("transform", tr); L2.gz.setAttribute("transform", tr);
+      syncLabelSize();
+    }
     let labFs = 20;
     function syncLabelSize() {
       // viewBox 默认 meet 缩放，实际比例受「宽/高中较小的那个」限制。
       // 宽屏下往往被高度限制，只按宽度反推会把标签算小（你 1920 截图里就是这样）。
       // 用真实缩放系数反推：任何窗口下名称恒为屏幕约 22px、数值约 19px。
-      const r = svg.getBoundingClientRect();
+      const r = wrap.getBoundingClientRect();
       const sc = Math.max(0.05, Math.min((r.width || 700) / G.W, (r.height || 600) / G.H));
       labFs = 22 / sc / st.s;
       layoutLabels();
       gAdj.querySelectorAll("line").forEach((l) => l.setAttribute("stroke-width", 1.1 / st.s));
-      gPoly.querySelectorAll("path").forEach((p) => p.setAttribute("stroke-width", 1.6 / st.s));
+      syncStroke();
     }
+    function syncStroke() {
+      // 描边宽度除以缩放倍数：屏幕上始终约 1.6 个视图单位粗细，放大地图不会出现粗黑边（与旧版一致）。
+      // 选中城市只靠描边颜色区分，不额外加粗
+      Object.keys(polys).forEach((k) => {
+        setA(polys[k], "stroke-width", +(1.6 / st.s).toFixed(4));
+      });
+    }
+    /* 标签几何。名称宽度只随字号变（缩放时量一次）；数值在等宽数字下同「位型」同宽，
+       按位型缓存 —— 逐日播放时不再每帧做 22 次强制文本测量 */
+    let nameW = {}, valW = {}, lastFs = -1;
+    function textW(t) { return t.getComputedTextLength ? t.getComputedTextLength() : 0; }
     function layoutLabels() {
+      if (!showLab) return;       // 整层隐藏时量出来是 0，留到重新显示时再量
       const fs = labFs, vs = fs * 0.85;
+      if (fs !== lastFs) {
+        lastFs = fs; nameW = {}; valW = {};
+        Object.keys(labels).forEach((k) => { labels[k][0].setAttribute("font-size", fs); labels[k][1].setAttribute("font-size", vs); });
+      }
       Object.keys(labels).forEach((k) => {
         const c = G.cents[k];
         if (!c) return;
         const t1 = labels[k][0], t2 = labels[k][1], bg = labels[k][2];
-        t1.setAttribute("font-size", fs);
-        t2.setAttribute("font-size", vs);
         const showV = showVal && t2.style.display !== "none";
         const padX = fs * 0.42, padY = fs * 0.28;
-        const w1 = t1.getComputedTextLength ? t1.getComputedTextLength() : fs * 2;
-        const w2 = showV && t2.getComputedTextLength ? t2.getComputedTextLength() : 0;
-        const w = Math.max(w1, w2) + padX * 2;
+        if (nameW[k] === undefined) nameW[k] = textW(t1) || fs * 2;
+        let w2 = 0;
+        if (showV) {
+          const shape = t2.textContent.replace(/\d/g, "#");
+          if (valW[shape] === undefined) valW[shape] = textW(t2);
+          w2 = valW[shape];
+        }
+        const w = Math.max(nameW[k], w2) + padX * 2;
         const h = fs + (showV ? vs * 1.25 : 0) + padY * 2;
         const cx = c[0], cy = c[1];
-        bg.setAttribute("x", cx - w / 2); bg.setAttribute("y", cy - h / 2);
-        bg.setAttribute("width", w); bg.setAttribute("height", h);
-        bg.setAttribute("rx", Math.min(10, h * 0.22));
-        bg.setAttribute("stroke", k === sel ? "#0E7C86" : "#D7E2EA");
-        bg.setAttribute("stroke-width", k === sel ? 1.8 : 1);
-        t1.setAttribute("x", cx); t2.setAttribute("x", cx);
-        t1.setAttribute("y", showV ? cy - vs * 0.28 : cy + fs * 0.35);
-        t2.setAttribute("y", cy + h / 2 - padY - vs * 0.12);
+        setA(bg, "x", cx - w / 2); setA(bg, "y", cy - h / 2);
+        setA(bg, "width", w); setA(bg, "height", h);
+        setA(bg, "rx", Math.min(10, h * 0.22));
+        setA(bg, "stroke", k === sel ? "#0E7C86" : "#D7E2EA");
+        setA(bg, "stroke-width", k === sel ? 1.8 : 1);
+        setA(t1, "x", cx); setA(t2, "x", cx);
+        setA(t1, "y", showV ? cy - vs * 0.28 : cy + fs * 0.35);
+        setA(t2, "y", cy + h / 2 - padY - vs * 0.12);
       });
     }
-    new ResizeObserver(() => syncLabelSize()).observe(wrap);
+    const ro = new ResizeObserver(() => syncLabelSize());
+    ro.observe(wrap);
     wrap.addEventListener("wheel", (ev) => {
       ev.preventDefault();
       const r = svg.getBoundingClientRect();
@@ -218,14 +272,16 @@
     wrap.addEventListener("mousedown", (ev) => { drag = { x: ev.clientX, y: ev.clientY, tx: st.tx, ty: st.ty };
       CH.TIP().style.opacity = 0;
       wrap.classList.add("drag"); });
-    window.addEventListener("mouseup", () => { drag = null; wrap.classList.remove("drag"); });
-    window.addEventListener("mousemove", (ev) => {
+    const onWinUp = () => { drag = null; wrap.classList.remove("drag"); };
+    const onWinMove = (ev) => {
       if (!drag) return;
       const r = svg.getBoundingClientRect();
       st.tx = drag.tx + (ev.clientX - drag.x) / r.width * G.W;
       st.ty = drag.ty + (ev.clientY - drag.y) / r.height * G.H;
       applyT();
-    });
+    };
+    window.addEventListener("mouseup", onWinUp);
+    window.addEventListener("mousemove", onWinMove);
     wrap.addEventListener("dblclick", () => { st.s = 1; st.tx = 0; st.ty = 0; applyT(); });
     const tools = U.el("div", "maptools");
     ["+", "−", "⟲"].forEach((s) => {
@@ -242,6 +298,9 @@
     const scalebar = U.el("div", "scalebar", "");
     scalebar.innerHTML = "<div class='sb-t'></div><div class='sb-bar'></div>" +
       "<div class='sb-l'><span>0</span><span class='sb-max'></span></div>";
+    scalebar.style.fontSize = "13px";
+    scalebar.style.padding = "6px 12px";
+    const sbT = scalebar.querySelector(".sb-t"), sbMax = scalebar.querySelector(".sb-max");
     wrap.appendChild(scalebar);
 
     /* ---------- 时间轴 ---------- */
@@ -254,24 +313,50 @@
     playBtns.push(playBtn);
     tl.appendChild(playBtn);
     const dayTxt = U.el("div", "day", "");
+    dayTxt.style.fontSize = "17px";
     const range = document.createElement("input"); range.type = "range";
     range.min = 0; range.max = n - 1; range.value = day;
-    const tot = U.el("div", "tot", "");
+    const tot = U.el("div", "tot", "全省 实测 <b></b> · 预测 <b></b>");
+    tot.style.fontSize = "13px";
+    const totB = tot.querySelectorAll("b");
     tl.appendChild(dayTxt); tl.appendChild(range); tl.appendChild(tot);
     card.bd.appendChild(tl);
     range.oninput = () => { day = +range.value; render(); };
     // 空格播放 / 暂停（输入控件聚焦时不劫持）
-    document.addEventListener("keydown", (ev) => {
+    const onKeySpace = (ev) => {
       if (!alive || ev.code !== "Space") return;
       const t = (ev.target && ev.target.tagName) || "";
       if (t === "INPUT" || t === "TEXTAREA" || t === "SELECT") return;
       ev.preventDefault();
       setPlaying(!playing);
-    });
+    };
+    document.addEventListener("keydown", onKeySpace);
     function tick() {
       clearInterval(timer);
       if (!playing) return;
       timer = setInterval(() => { day = (day + 1) % n; range.value = day; render(); }, 90);
+    }
+    // 离开本页：停播放、停流动动画、断开尺寸观察、移除 window/document 监听
+    //（原先这些监听每进一次地图页就多一套，并把整张地图的 DOM 一直留在内存里）
+    let liveT = 0;
+    function dispose() {
+      alive = false; clearInterval(timer); playing = false;
+      clearTimeout(liveT);
+      if (flowRaf) { cancelAnimationFrame(flowRaf); flowRaf = 0; }
+      try { ro.disconnect(); } catch (err) { }
+      window.removeEventListener("mouseup", onWinUp);
+      window.removeEventListener("mousemove", onWinMove);
+      document.removeEventListener("keydown", onKeyEsc);
+      document.removeEventListener("keydown", onKeySpace);
+      document.removeEventListener("visibilitychange", onVis);
+      CH.TIP().style.opacity = 0;
+    }
+    window.addEventListener("hashchange", dispose, { once: true });
+    function setPlaying(on) {
+      if (!alive) return;
+      playing = on;
+      playBtns.forEach((b) => { b.classList.toggle("on", on); b.textContent = on ? "❚❚" : "▶"; });
+      tick();
     }
 
     /* ---------- 渲染 ---------- */
@@ -294,10 +379,17 @@
       return mx;
     }
     let MX = maxima();
+    let lastRender = -1e9, lastSel = null;
     function render() {
-      const d = D.dates[day];
-      dayTxt.textContent = d;
-      dayTxt.style.fontSize = "17px";
+      // 连续更新（播放 / 拖时间轴）期间关掉多边形 fill 过渡：90ms 一步本就看不出渐变，
+      // 却让 11 个多边形始终处于动画中；松手或暂停后恢复，点选「着色」时仍有渐变
+      const now = performance.now();
+      if (now - lastRender < 260) wrap.classList.add("live");
+      lastRender = now;
+      clearTimeout(liveT);
+      liveT = setTimeout(() => { wrap.classList.remove("live"); lastRender = -1e9; }, 300);
+
+      dayTxt.textContent = D.dates[day];
       let sumO = 0, sumP = 0;
       // 计数类用对数刻度（低值日也能看出差异），偏差/Rt 用线性
       const scale = (v) => {
@@ -306,60 +398,56 @@
         if (metric === "bias") return Math.min(1, Math.abs(v) / Math.max(1, MX * 0.35));
         return Math.min(1, Math.log1p(Math.abs(v)) / Math.log1p(Math.max(1, MX)));
       };
+      const selChanged = sel !== lastSel;
       D.cities.forEach((c, ci) => {
         const v = currentVal(day, ci);
         const t = scale(v);
         const fillC = (v === null || !isFinite(v)) ? "#EEF3F7" : heatColor(metric === "bias" ? Math.abs(t) : t);
         if (polys[c]) {
-          polys[c].setAttribute("fill", fillC);
-          polys[c].style.opacity = (sel && sel !== c) ? 0.96 : 1;
-          polys[c].setAttribute("stroke", c === sel ? "#0E7C86" : "#FFFFFF");
-          polys[c].setAttribute("stroke-width", c === sel ? 2.4 : 1.6);
+          setA(polys[c], "fill", fillC);
+          const op = (sel && sel !== c) ? "0.96" : "1";
+          if (polys[c].style.opacity !== op) polys[c].style.opacity = op;
+          if (selChanged) setA(polys[c], "stroke", c === sel ? "#0E7C86" : "#FFFFFF");
         }
         const lab = labels[c];
         if (lab) {
           // 第二行带口径与单位：计数类「例」、Rt 前缀、偏差显式正负号
-          lab[1].textContent = (v === null || !isFinite(v)) ? "—" :
+          const txt = (v === null || !isFinite(v)) ? "—" :
             metric === "rt" ? "Rt " + U.fmt(v, 2) :
             (metric === "bias" ? (v > 0 ? "+" : "") + U.fmt(v, 1) + " 例" : U.fmt(v, 0) + " 例");
-          lab[1].style.display = showVal ? "" : "none";
-          lab[0].setAttribute("fill", c === sel ? "#0B5A62" : "#14202B");
-          lab[1].setAttribute("fill", metric === "rt" ? "#8E44C7" :
+          if (lab[1].textContent !== txt) lab[1].textContent = txt;
+          const disp = showVal ? "" : "none";
+          if (lab[1].style.display !== disp) lab[1].style.display = disp;
+          setA(lab[0], "fill", c === sel ? "#0B5A62" : "#14202B");
+          setA(lab[1], "fill", metric === "rt" ? "#8E44C7" :
             (metric === "bias" ? (v > 0 ? "#C2410C" : "#1D4ED8") : "#0B5A62"));
         }
         const yv = D.series.y[day] ? D.series.y[day][ci] : null, fv = D.series.f[day] ? D.series.f[day][ci] : null;
         if (yv !== null) sumO += yv; if (fv !== null) sumP += fv;
       });
-      tot.innerHTML = "全省 实测 <b>" + U.fmt(sumO, 0) + "</b> · 预测 <b>" + U.fmt(sumP, 0) + "</b>";
-      tot.style.fontSize = "13px";
-      gFlow.style.display = showFlow ? "" : "none";
-      gAdj.style.display = showAdj ? "" : "none";
-      gLab.style.display = showLab ? "" : "none";
-      (flowEls || []).forEach((p) => p && p.setAttribute("opacity", showFlow ? .55 : 0));
-      scalebar.style.fontSize = "13px";
-      scalebar.style.padding = "6px 12px";
-      scalebar.querySelector(".sb-t").textContent = ["预测值", "实测值", "偏差(预测-实测)", "Rt"][["pred", "obs", "bias", "rt"].indexOf(metric)] + " · 色阶";
-      scalebar.querySelector(".sb-max").textContent = U.fmt(MX, metric === "rt" ? 2 : 0);
+      lastSel = sel;
+      totB[0].textContent = U.fmt(sumO, 0);
+      totB[1].textContent = U.fmt(sumP, 0);
       layoutLabels();
-      renderRail();
+      updateRail();
     }
-    /* ---------- 右栏 ---------- */
-    let railBuilt = false;
-    function renderRail() {
-      rail.innerHTML = "";
-      const ci = D.cities.indexOf(sel);
-      const val = currentVal(day, ci);
+    /* 图层显隐、色阶文字：与「当前是哪一天」无关，只在开关切换时更新 */
+    function applyLayers() {
+      L1.svg.style.display = showFlow ? "" : "none";
+      gAdj.style.display = showAdj ? "" : "none";
+      L2.svg.style.display = showLab ? "" : "none";
+      sbT.textContent = ["预测值", "实测值", "偏差(预测-实测)", "Rt"][["pred", "obs", "bias", "rt"].indexOf(metric)] + " · 色阶";
+      sbMax.textContent = U.fmt(MX, metric === "rt" ? 2 : 0);
+      layoutLabels();
+      startFlow();
+    }
+    /* ---------- 右栏：只建一次，逐日只改文本 ---------- */
+    let railEls = null, miniChart = null, railCi = -1;
+    function buildRail() {
       const c1 = U.card(rail, (sel || "—") + "市", D.dates[day]);
       const kv = U.el("div");
-      const rk = D.cities.map((c, i) => ({ c, v: currentVal(day, i) })).filter((z) => z.v !== null).sort((a, b) => b.v - a.v);
-      const rank = rk.findIndex((z) => z.c === sel) + 1;
-      const rm = (D.metrics.per_city || []).find((z) => z.city === sel + "市" || z.city === sel) || {};
-      kv.innerHTML = [
-        ["当日" + ({ pred: "预测", obs: "实测", bias: "偏差", rt: "Rt" }[metric]), metric === "rt" ? U.fmt(val, 2) : U.fmt(val, 1) + " 例"],
-        ["全省排名", rank ? rank + " / 11" : "—"],
-        ["测试段 nRMSE", U.pct(rm.nrmse, 1)],
-        ["R0", U.fmt((D.r0.city.find((z) => z.city === sel) || {}).r0, 2)],
-      ].map((kv2) => "<div class='kv'><span>" + kv2[0] + "</span><span>" + kv2[1] + "</span></div>").join("");
+      kv.innerHTML = ["当日预测", "全省排名", "测试段 nRMSE", "R0"]
+        .map((k2) => "<div class='kv'><span>" + k2 + "</span><span></span></div>").join("");
       c1.bd.appendChild(kv);
       const btn = U.el("button", "btn block primary", "进入城市剖析 →");
       btn.style.marginTop = "8px";
@@ -367,10 +455,9 @@
       c1.bd.appendChild(btn);
       const cbox = U.el("div"); cbox.style.height = "88px";
       c1.bd.appendChild(cbox);
-      const y = D.series.y.map((r) => r[ci]), f = D.series.f.map((r) => r[ci]);
-      setTimeout(() => new CH.LineChart(cbox, { dates: D.dates, minimal: true, showX: false,
-        padding: [4, 30, 4, 26], series: [{ label: "实测", color: "#1F2A36", width: 1.2, data: y },
-          { label: "预测", color: "#0E7C86", width: 1.4, data: f }], yFormat: (v) => CH.fmt(v, 0) }), 5);
+      miniChart = new CH.LineChart(cbox, { dates: D.dates, minimal: true, showX: false,
+        padding: [4, 30, 4, 26], series: [{ label: "实测", color: "#1F2A36", width: 1.2, data: [] },
+          { label: "预测", color: "#0E7C86", width: 1.4, data: [] }], yFormat: (v) => CH.fmt(v, 0) });
 
       const c2 = U.card(rail, "迁徙流 TOP10", "百度迁徙 · 2020-2025 均值份额");
       const list = U.el("div", "list");
@@ -383,6 +470,30 @@
         list.appendChild(row);
       });
       c2.bd.appendChild(list);
+      railEls = {
+        h3: c1.hd.querySelector("h3"), sub: c1.hd.querySelector(".sub"),
+        k0: kv.querySelector(".kv > span:first-child"),
+        vals: Array.from(kv.querySelectorAll(".kv > span:last-child"))
+      };
+    }
+    function updateRail() {
+      const ci = D.cities.indexOf(sel);
+      const val = currentVal(day, ci);
+      const rk = D.cities.map((c, i) => ({ c, v: currentVal(day, i) })).filter((z) => z.v !== null).sort((a, b) => b.v - a.v);
+      const rank = rk.findIndex((z) => z.c === sel) + 1;
+      const rm = (D.metrics.per_city || []).find((z) => z.city === sel + "市" || z.city === sel) || {};
+      const E = railEls;
+      E.h3.textContent = (sel || "—") + "市";
+      E.sub.textContent = D.dates[day];
+      E.k0.textContent = "当日" + MET[metric];
+      const vs = [metric === "rt" ? U.fmt(val, 2) : U.fmt(val, 1) + " 例", rank ? rank + " / 11" : "—",
+        U.pct(rm.nrmse, 1), U.fmt((D.r0.city.find((z) => z.city === sel) || {}).r0, 2)];
+      for (let i = 0; i < 4; i++) if (E.vals[i].textContent !== vs[i]) E.vals[i].textContent = vs[i];
+      if (ci !== railCi) {      // 换城市才换数据；同一城市逐日回放不重建图表
+        railCi = ci;
+        miniChart.setData(D.dates, [{ label: "实测", color: "#1F2A36", width: 1.2, data: D.series.y.map((r) => r[ci]) },
+          { label: "预测", color: "#0E7C86", width: 1.4, data: D.series.f.map((r) => r[ci]) }]);
+      }
     }
 
     /* ---------- 左控制台 ---------- */
@@ -403,7 +514,7 @@
         ["标签数值", () => showVal, (v) => showVal = v],
       ];
       ly.forEach(([lab, get, set]) => {
-        row(lab, get(), (e) => { set(!get()); e.currentTarget.classList.toggle("on", get()); render(); });
+        row(lab, get(), (e) => { set(!get()); e.currentTarget.classList.toggle("on", get()); render(); applyLayers(); });
       });
       cw.appendChild(U.el("h4", "", "着色"));
       const colors = [["pred", "预测值"], ["obs", "实测值"], ["bias", "偏差"], ["rt", "有效再生数 Rt"]];
@@ -412,13 +523,15 @@
           metric = k; MX = maxima();
           rows.forEach((r) => r.classList.remove("on"));
           d.classList.add("on");
-          render();
+          render(); applyLayers();
         });
         d.classList.add("radio");
         return d;
       });
     }
+    buildRail();
     syncLabelSize();
+    applyLayers();
     render();
   });
 })();

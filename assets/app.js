@@ -89,10 +89,14 @@
         m = U.el("div", "modal");
         m.innerHTML = "<div class='box'><div class='bhd'><h3></h3><div style='margin-left:auto;display:flex;gap:8px'><button class='btn sm' data-close>关闭</button></div></div><div class='bbd'></div></div>";
         document.body.appendChild(m);
-        m.addEventListener("click", (e) => { if (e.target === m || e.target.hasAttribute("data-close")) m.classList.remove("on"); });
+        // 关闭即销毁弹窗内的图表：否则每次「放大」都会多留一个实例（含 SVG 子树与 window 监听）
+        const body0 = m.querySelector(".bbd");
+        const close = () => { m.classList.remove("on"); Chart.teardownIn(body0); };
+        m.addEventListener("click", (e) => { if (e.target === m || e.target.hasAttribute("data-close")) close(); });
       }
       m.querySelector("h3").textContent = title;
       const bd = m.querySelector(".bbd");
+      Chart.teardownIn(bd);     // 上一次关闭后 30ms 内才建好的图表在这里兜底销毁
       bd.innerHTML = "";
       m.classList.add("on");
       return bd;

@@ -199,7 +199,7 @@ button{font-family:inherit}
 .legend{display:flex;flex-wrap:wrap;gap:10px;align-items:center;font-size:10.5px;color:var(--tx2);padding:2px 0 4px}
 .legend i{display:inline-block;width:12px;height:3px;border-radius:2px;margin-right:5px;vertical-align:middle}
 .legend .dot{width:8px;height:8px;border-radius:50%;margin-right:5px}
-.tipbox{position:fixed;pointer-events:none;background:rgba(255,255,255,.98);border:1px solid var(--line2);
+.tipbox{position:fixed;left:0;top:0;pointer-events:none;background:rgba(255,255,255,.98);border:1px solid var(--line2);
   border-radius:8px;padding:7px 10px;font-size:11px;color:var(--tx);box-shadow:0 8px 26px rgba(20,32,43,.16);
   opacity:0;transition:opacity .1s;z-index:99;min-width:120px;line-height:1.6}
 .tipbox b{color:var(--accent)}
@@ -213,6 +213,12 @@ button{font-family:inherit}
   border-radius:8px;overflow:hidden;cursor:grab}
 .mapwrap.drag{cursor:grabbing}
 .mapwrap svg{width:100%;height:100%;display:block}
+/* 地图分三层叠放：底图接收鼠标；迁徙流 / 标签两层不拦截事件，并各自独立成合成层，
+   这样流动线动画、逐日填色、标签数值变化互不牵连着重绘 */
+.mapwrap>svg{position:absolute;left:0;top:0}
+.mapwrap>svg.mv-flow,.mapwrap>svg.mv-lab{pointer-events:none;will-change:transform}
+.mappoly{cursor:pointer;transition:fill .18s}
+.mapwrap.live .mappoly{transition:none}
 .lab-layer{position:absolute;inset:0;pointer-events:none;overflow:hidden}
 .clab{position:absolute;transform:translate(-50%,-50%);text-align:center;line-height:1.15;white-space:nowrap;
   text-shadow:0 0 3px #fff,0 0 3px #fff,0 0 4px #fff,0 0 6px #fff}
@@ -318,9 +324,10 @@ table.t.compact th:first-child,table.t.compact td:first-child{width:36%}
 .kbd{display:inline-block;border:1px solid var(--line2);border-bottom-width:2px;border-radius:5px;
   padding:0 6px;font-size:10.5px;background:#fff;color:var(--tx2);font-family:inherit}
 
-/* ---------- 迁徙流动画 ---------- */
-@keyframes flowdash{to{stroke-dashoffset:-28}}
-.flow{stroke-dasharray:6 8;animation:flowdash 1.4s linear infinite}
+/* ---------- 迁徙流动画 ----------
+   虚线相位由 page-map.js 按动画时钟推进（约 30 次/秒）；不再用 CSS 无限动画，
+   那样会让整张地图在页面静止时也每帧重绘 */
+.flow{stroke-dasharray:6 8}
 
 /* ---------- 左控制台：图层开关 / 着色单选行 ---------- */
 .side .row{display:flex;align-items:center;gap:8px;border-radius:6px;margin:0 8px;
