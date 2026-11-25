@@ -98,12 +98,12 @@
     (G.edges || []).forEach(([a, b]) => {
       const ca = G.cents[a], cb = G.cents[b];
       if (!ca || !cb) return;
-      e("line", { x1: ca[0], y1: ca[1], x2: cb[0], y2: cb[1], stroke: "#B9C7D2",
+      e("line", { x1: ca[0], y1: ca[1], x2: cb[0], y2: cb[1], stroke: "#D9C7B6",
         "stroke-width": 1.1, "stroke-dasharray": "3 5", opacity: .85 }, gAdj);
     });
     const polys = {}, labels = {}, vals = {};
     Object.keys(G.polys || {}).forEach((k) => {
-      polys[k] = e("path", { d: G.polys[k], fill: "#EEF3F7", stroke: "#FFFFFF", "stroke-width": 1.6,
+      polys[k] = e("path", { d: G.polys[k], fill: "#F1EAE0", stroke: "#FFFFFF", "stroke-width": 1.6,
         class: "mappoly" }, gPoly);
       polys[k].addEventListener("click", () => { sel = k; CH.TIP().style.opacity = 0; render(); });
       polys[k].addEventListener("mouseenter", (ev) => { polys[k].setAttribute("stroke", "#0E7C86"); showCityTip(k, ev); });
@@ -152,12 +152,12 @@
     Object.keys(G.cents || {}).forEach((k) => {
       const [x, y] = G.cents[k];
       const g = e("g", { style: "pointer-events:none" }, gLab);
+      // 暖米白半透明底 + 琥珀细边、无投影：跟地图的奶油→橙→红色阶同色系，不再像贴上去的白贴纸
       const bg = e("rect", { x: x - 30, y: y - 20, width: 60, height: 40, rx: 8,
-        fill: "rgba(255,255,255,.95)", stroke: "#D7E2EA", "stroke-width": 1,
-        style: "filter:drop-shadow(0 1px 2px rgba(12,22,30,.20))" }, g);
-      const t1 = e("text", { x, y, "text-anchor": "middle", "font-weight": 800, fill: "#14202B" }, g);
+        fill: "rgba(255,250,243,.80)", stroke: "rgba(196,120,60,.45)", "stroke-width": 1.2 }, g);
+      const t1 = e("text", { x, y, "text-anchor": "middle", "font-weight": 800, fill: "#7C2D12" }, g);
       t1.textContent = k;
-      const t2 = e("text", { x, y, "text-anchor": "middle", "font-weight": 800, fill: "#0B5A62",
+      const t2 = e("text", { x, y, "text-anchor": "middle", "font-weight": 800, fill: "#9A3412",
         "font-variant-numeric": "tabular-nums" }, g);
       labels[k] = [t1, t2, bg];
     });
@@ -238,7 +238,7 @@
         if (!c) return;
         const t1 = labels[k][0], t2 = labels[k][1], bg = labels[k][2];
         const showV = showVal && t2.style.display !== "none";
-        const padX = fs * 0.42, padY = fs * 0.28;
+        const padX = fs * 0.34, padY = fs * 0.20;
         if (nameW[k] === undefined) nameW[k] = textW(t1) || fs * 2;
         let w2 = 0;
         if (showV) {
@@ -251,9 +251,10 @@
         const cx = c[0], cy = c[1];
         setA(bg, "x", cx - w / 2); setA(bg, "y", cy - h / 2);
         setA(bg, "width", w); setA(bg, "height", h);
-        setA(bg, "rx", Math.min(10, h * 0.22));
-        setA(bg, "stroke", k === sel ? "#0E7C86" : "#D7E2EA");
-        setA(bg, "stroke-width", k === sel ? 1.8 : 1);
+        setA(bg, "rx", Math.min(8, h * 0.2));
+        setA(bg, "fill", k === sel ? "rgba(255,244,232,.92)" : "rgba(255,250,243,.80)");
+        setA(bg, "stroke", k === sel ? "#0E7C86" : "rgba(196,120,60,.45)");
+        setA(bg, "stroke-width", k === sel ? 1.8 : 1.2);
         setA(t1, "x", cx); setA(t2, "x", cx);
         setA(t1, "y", showV ? cy - vs * 0.28 : cy + fs * 0.35);
         setA(t2, "y", cy + h / 2 - padY - vs * 0.12);
@@ -405,7 +406,7 @@
       D.cities.forEach((c, ci) => {
         const v = currentVal(day, ci);
         const t = scale(v);
-        const fillC = (v === null || !isFinite(v)) ? "#EEF3F7" : heatColor(metric === "bias" ? Math.abs(t) : t);
+        const fillC = (v === null || !isFinite(v)) ? "#F1EAE0" : heatColor(metric === "bias" ? Math.abs(t) : t);
         if (polys[c]) {
           setA(polys[c], "fill", fillC);
           const op = (sel && sel !== c) ? "0.96" : "1";
@@ -421,9 +422,9 @@
           if (lab[1].textContent !== txt) lab[1].textContent = txt;
           const disp = showVal ? "" : "none";
           if (lab[1].style.display !== disp) lab[1].style.display = disp;
-          setA(lab[0], "fill", c === sel ? "#0B5A62" : "#14202B");
+          setA(lab[0], "fill", c === sel ? "#0B5A62" : "#7C2D12");
           setA(lab[1], "fill", metric === "rt" ? "#8E44C7" :
-            (metric === "bias" ? (v > 0 ? "#C2410C" : "#1D4ED8") : "#0B5A62"));
+            (metric === "bias" ? (v > 0 ? "#C2410C" : "#1D4ED8") : "#9A3412"));
         }
         const yv = D.series.y[day] ? D.series.y[day][ci] : null, fv = D.series.f[day] ? D.series.f[day][ci] : null;
         if (yv !== null) sumO += yv; if (fv !== null) sumP += fv;

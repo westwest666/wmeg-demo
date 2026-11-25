@@ -209,7 +209,7 @@ button{font-family:inherit}
 .chart .hover-line{stroke:#94A5B4;stroke-width:1;stroke-dasharray:3 3}
 
 /* ---------- 地图 ---------- */
-.mapwrap{position:relative;flex:1;min-height:340px;background:radial-gradient(circle at 50% 42%,#FFFFFF 0%,#F3F8FA 78%);
+.mapwrap{position:relative;flex:1;min-height:340px;background:radial-gradient(circle at 50% 42%,#FFFDFA 0%,#F6EFE4 78%);
   border-radius:8px;overflow:hidden;cursor:grab}
 .mapwrap.drag{cursor:grabbing}
 .mapwrap svg{width:100%;height:100%;display:block}
@@ -228,8 +228,8 @@ button{font-family:inherit}
 .clab.sel .n{color:var(--accent)}
 .maptools{position:absolute;right:10px;bottom:10px;display:flex;flex-direction:column;gap:5px;z-index:4}
 .maptools .btn{width:28px;height:28px;padding:0;border-radius:7px;background:#fff;box-shadow:0 1px 5px rgba(20,32,43,.12)}
-.scalebar{position:absolute;left:10px;top:10px;font-size:10px;color:var(--tx3);background:rgba(255,255,255,.9);
-  border:1px solid var(--line);border-radius:6px;padding:4px 8px;z-index:4}
+.scalebar{position:absolute;left:10px;top:10px;font-size:10px;color:var(--tx3);background:rgba(255,252,247,.92);
+  border:1px solid rgba(196,120,60,.28);border-radius:6px;padding:4px 8px;z-index:4}
 
 /* 地图全屏：小窗口下也能把 11 市标注看清 */
 .card.fullmap{position:fixed;inset:14px;z-index:300;background:#fff;box-shadow:0 24px 70px rgba(12,22,30,.28)}
