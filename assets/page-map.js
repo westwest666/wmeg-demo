@@ -152,14 +152,14 @@
     Object.keys(G.cents || {}).forEach((k) => {
       const [x, y] = G.cents[k];
       const g = e("g", { style: "pointer-events:none" }, gLab);
-      // 暖米白半透明底 + 琥珀细边、无投影：跟地图的奶油→橙→红色阶同色系，不再像贴上去的白贴纸
-      const bg = e("rect", { x: x - 30, y: y - 20, width: 60, height: 40, rx: 8,
-        fill: "rgba(255,250,243,.80)", stroke: "rgba(196,120,60,.45)", "stroke-width": 1.2 }, g);
-      const t1 = e("text", { x, y, "text-anchor": "middle", "font-weight": 800, fill: "#7C2D12" }, g);
+      // 无框制图式标注：文字外圈一层暖纸色光晕（paint-order:stroke），直接"印"在地图上，
+      // 没有任何矩形底；光晕随字号同步缩放，深红城市与迁徙线上也读得清
+      const halo = { stroke: "rgba(255,249,240,.92)", "stroke-linejoin": "round", "paint-order": "stroke" };
+      const t1 = e("text", Object.assign({ x, y, "text-anchor": "middle", "font-weight": 800, fill: "#7C2D12" }, halo), g);
       t1.textContent = k;
-      const t2 = e("text", { x, y, "text-anchor": "middle", "font-weight": 800, fill: "#9A3412",
-        "font-variant-numeric": "tabular-nums" }, g);
-      labels[k] = [t1, t2, bg];
+      const t2 = e("text", Object.assign({ x, y, "text-anchor": "middle", "font-weight": 800, fill: "#9A3412",
+        "font-variant-numeric": "tabular-nums" }, halo), g);
+      labels[k] = [t1, t2, null];
     });
     /* 悬停城市：一张完整的当日信息卡，而不是把更多字挤进地图标注。
        同一天同一城市只拼一次 HTML，鼠标移动时只挪位置 */
@@ -222,39 +222,29 @@
         setA(polys[k], "stroke-width", +(1.6 / st.s).toFixed(4));
       });
     }
-    /* 标签几何。名称宽度只随字号变（缩放时量一次）；数值在等宽数字下同「位型」同宽，
-       按位型缓存 —— 逐日播放时不再每帧做 22 次强制文本测量 */
-    let nameW = {}, valW = {}, lastFs = -1;
-    function textW(t) { return t.getComputedTextLength ? t.getComputedTextLength() : 0; }
+    /* 标签几何：无框光晕文字，不再需要量文本宽度（逐日播放零强制测量）。
+       光晕粗细随字号同步缩放，位置公式与原徽章中心一致 */
+    let lastFs = -1;
     function layoutLabels() {
-      if (!showLab) return;       // 整层隐藏时量出来是 0，留到重新显示时再量
+      if (!showLab) return;       // 整层隐藏时留到重新显示再排
       const fs = labFs, vs = fs * 0.85;
       if (fs !== lastFs) {
-        lastFs = fs; nameW = {}; valW = {};
-        Object.keys(labels).forEach((k) => { labels[k][0].setAttribute("font-size", fs); labels[k][1].setAttribute("font-size", vs); });
+        lastFs = fs;
+        Object.keys(labels).forEach((k) => {
+          labels[k][0].setAttribute("font-size", fs);
+          labels[k][1].setAttribute("font-size", vs);
+          labels[k][0].setAttribute("stroke-width", (fs * 0.16).toFixed(2));
+          labels[k][1].setAttribute("stroke-width", (vs * 0.16).toFixed(2));
+        });
       }
       Object.keys(labels).forEach((k) => {
         const c = G.cents[k];
         if (!c) return;
-        const t1 = labels[k][0], t2 = labels[k][1], bg = labels[k][2];
+        const t1 = labels[k][0], t2 = labels[k][1];
         const showV = showVal && t2.style.display !== "none";
-        const padX = fs * 0.34, padY = fs * 0.20;
-        if (nameW[k] === undefined) nameW[k] = textW(t1) || fs * 2;
-        let w2 = 0;
-        if (showV) {
-          const shape = t2.textContent.replace(/\d/g, "#");
-          if (valW[shape] === undefined) valW[shape] = textW(t2);
-          w2 = valW[shape];
-        }
-        const w = Math.max(nameW[k], w2) + padX * 2;
+        const padY = fs * 0.20;
         const h = fs + (showV ? vs * 1.25 : 0) + padY * 2;
         const cx = c[0], cy = c[1];
-        setA(bg, "x", cx - w / 2); setA(bg, "y", cy - h / 2);
-        setA(bg, "width", w); setA(bg, "height", h);
-        setA(bg, "rx", Math.min(8, h * 0.2));
-        setA(bg, "fill", k === sel ? "rgba(255,244,232,.92)" : "rgba(255,250,243,.80)");
-        setA(bg, "stroke", k === sel ? "#0E7C86" : "rgba(196,120,60,.45)");
-        setA(bg, "stroke-width", k === sel ? 1.8 : 1.2);
         setA(t1, "x", cx); setA(t2, "x", cx);
         setA(t1, "y", showV ? cy - vs * 0.28 : cy + fs * 0.35);
         setA(t2, "y", cy + h / 2 - padY - vs * 0.12);
@@ -425,6 +415,9 @@
           setA(lab[0], "fill", c === sel ? "#0B5A62" : "#7C2D12");
           setA(lab[1], "fill", metric === "rt" ? "#8E44C7" :
             (metric === "bias" ? (v > 0 ? "#C2410C" : "#1D4ED8") : "#9A3412"));
+          // 选中城市：光晕换淡青，配合青色城市名形成选中态（不再靠矩形描边）
+          const hl = c === sel ? "rgba(223,241,240,.95)" : "rgba(255,249,240,.92)";
+          setA(lab[0], "stroke", hl); setA(lab[1], "stroke", hl);
         }
         const yv = D.series.y[day] ? D.series.y[day][ci] : null, fv = D.series.f[day] ? D.series.f[day][ci] : null;
         if (yv !== null) sumO += yv; if (fv !== null) sumP += fv;
@@ -461,7 +454,7 @@
       c1.bd.appendChild(cbox);
       miniChart = new CH.LineChart(cbox, { dates: D.dates, minimal: true, showX: false,
         padding: [4, 30, 4, 26], series: [{ label: "实测", color: "#1F2A36", width: 1.2, data: [] },
-          { label: "预测", color: "#0E7C86", width: 1.4, data: [] }], yFormat: (v) => CH.fmt(v, 0) });
+          { label: "预测", color: "#E8590C", width: 1.4, data: [] }], yFormat: (v) => CH.fmt(v, 0) });
 
       const c2 = U.card(rail, "迁徙流 TOP10", "百度迁徙 · 2020-2025 均值份额");
       const list = U.el("div", "list");
@@ -496,7 +489,7 @@
       if (ci !== railCi) {      // 换城市才换数据；同一城市逐日回放不重建图表
         railCi = ci;
         miniChart.setData(D.dates, [{ label: "实测", color: "#1F2A36", width: 1.2, data: D.series.y.map((r) => r[ci]) },
-          { label: "预测", color: "#0E7C86", width: 1.4, data: D.series.f.map((r) => r[ci]) }]);
+          { label: "预测", color: "#E8590C", width: 1.4, data: D.series.f.map((r) => r[ci]) }]);
       }
     }
 

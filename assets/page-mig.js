@@ -44,9 +44,9 @@
       new CH.LineChart(g2, { dates, padding: [12, 54, 26, 46], xTickN: 8,
         series: [
           { label: "迁徙强度", color: "#2F7FC1", width: 1.4, data: v },
-          { label: "全省 ILI", color: "#E8590C", width: 1.6, axis: 2, data: prov },
+          { label: "全省 ILI", color: "#1F2A36", width: 1.6, axis: 2, data: prov },
         ],
-        y2: true, yFormat: (v2) => U.fmt(v2, 1), y2Format: (v2) => U.fmt(v2, 0), y2color: "#E8590C" });
+        y2: true, yFormat: (v2) => U.fmt(v2, 1), y2Format: (v2) => U.fmt(v2, 0), y2color: "#1F2A36" });
     }, 40);
     c2.bd.appendChild(U.el("div", "tiny", "迁徙强度 = 各城 in/out 前 10 对端份额之和的均值；缺口为数据未公开时段。"));
 

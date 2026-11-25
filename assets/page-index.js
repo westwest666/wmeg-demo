@@ -49,8 +49,8 @@
           fn: (e) => { showMech = !showMech; e.target.classList.toggle("on", showMech); chart.setData(D.dates, series()); } },
       ]);
     c1.bd.innerHTML = CH.legend([
-      { label: "实测（7 日平滑）", color: "#1F2A36" },
-      { label: "WMEG-Net 融合预测", color: "#0E7C86", dot: false },
+      { label: "实测（7 日平滑）", color: "#1F2A36", dot: true },
+      { label: "WMEG-Net 融合预测", color: "#E8590C", ring: true },
       { label: "训练 / 验证 / 测试", color: "#EDF3F7" },
     ]);
     c1.card.classList.add("mainchart");
@@ -59,15 +59,16 @@
     let showMech = false, logY = false;
     function series() {
       const s = [
-        { label: "实测", color: "#1F2A36", width: 2.2, data: D.series.prov.y },
-        { label: "预测", color: "#0E7C86", width: 2.2, data: D.series.prov.f },
+        { label: "实测", color: "#1F2A36", width: 1.8, dots: 40, dotR: 1.9, dotFill: "#1F2A36", dotW: 0, data: D.series.prov.y },
+        { label: "预测", color: "#E8590C", width: 2.4, area: true, areaOpacity: .08,
+          dots: 40, dotR: 2.3, dotW: 1.6, data: D.series.prov.f },
       ];
-      if (showMech) s.push({ label: "机理分支（右轴）", color: "#E8590C", width: 1.2, dash: "5 3",
+      if (showMech) s.push({ label: "机理分支（右轴）", color: "#94A3B8", width: 1.2, dash: "5 3",
         axis: 2, opacity: .9, data: D.series.prov.m });
       return s;
     }
     const chart = new CH.LineChart(box, { dates: D.dates, series: series(), splitRanges: splitRanges(D),
-      brush: true, zoom: true, y2: true, y2Format: (v) => U.fmt(v, 0), y2color: "#E8590C" });
+      brush: true, zoom: true, y2: true, y2Format: (v) => U.fmt(v, 0), y2color: "#94A3B8" });
     function openBig() {
       const bd = U.modal("山西省 · 全省拟合与预测", () => {});
       const d = U.el("div"); d.style.flex = "1"; d.style.minHeight = "0";
@@ -96,7 +97,7 @@
       setTimeout(() => new CH.LineChart(cbox, {
         dates: D.dates, minimal: true, showX: false, padding: [4, 34, 4, 30],
         series: [{ label: "实测", color: "#1F2A36", width: 1.2, data: y, showTip: true },
-                 { label: "预测", color: "#0E7C86", width: 1.4, data: f }],
+                 { label: "预测", color: "#E8590C", width: 1.4, data: f }],
         splitRanges: splitRanges(D), yFormat: (v) => CH.fmt(v, 0)
       }), 10);
       cell.onclick = (e) => { if (e.shiftKey || e.ctrlKey) { openCity(city, y, f); } else { window.WMEG.go("city", { city: city }); } };
@@ -106,7 +107,8 @@
       const bd = U.modal(city + "市 · 拟合与预测", () => {});
       const d = U.el("div"); d.style.flex = "1"; bd.appendChild(d);
       setTimeout(() => new CH.LineChart(d, { dates: D.dates, splitRanges: splitRanges(D),
-        series: [{ label: "实测", color: "#1F2A36", width: 1.8, data: y }, { label: "预测", color: "#0E7C86", width: 1.8, data: f }] }), 30);
+        series: [{ label: "实测", color: "#1F2A36", width: 1.8, dots: 40, dotR: 1.9, dotFill: "#1F2A36", dotW: 0, data: y },
+          { label: "预测", color: "#E8590C", width: 2.2, area: true, areaOpacity: .08, dots: 40, dotR: 2.3, dotW: 1.6, data: f }] }), 30);
     }
 
     /* ---------- 右栏 ---------- */

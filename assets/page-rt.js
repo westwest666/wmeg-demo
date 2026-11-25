@@ -7,7 +7,7 @@
       { label: U.icon("expand"), title: "放大", fn: () => openBig() },
     ]);
     c1.bd.innerHTML = CH.legend([{ label: "模型预测反演 Rt", color: "#8E44C7" },
-      { label: "实测反演 Rt（参照）", color: "#2F7FC1" },
+      { label: "实测反演 Rt（参照）", color: "#1F2A36", dash: true },
       { label: "R = 1", color: "#C2185B" }]);
     const box = U.el("div"); box.style.height = "264px";
     c1.bd.appendChild(box);
@@ -16,7 +16,7 @@
       dates: D.dates, splitRanges: WMEG.splitRanges(D), brush: true, zoom: true, padding: [12, 48, 26, 44],
       series: [
         { label: "模型 Rt", color: "#8E44C7", width: 1.7, data: D.rt.prov_s },
-        { label: "实测 Rt", color: "#2F7FC1", width: 1.1, dash: "4 3", opacity: .8, data: D.rt.obs_prov_s },
+        { label: "实测 Rt", color: "#1F2A36", width: 1.2, dash: "4 3", opacity: .8, data: D.rt.obs_prov_s },
       ],
       yFormat: (v) => U.fmt(v, 1), hlines: [{ v: 1, color: "#C2185B", label: "R = 1" }],
       yMax: null, onSelect: (a, b) => {}

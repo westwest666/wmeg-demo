@@ -399,6 +399,17 @@
         if (r.d) el("path", { d: r.d, fill: "none", stroke: s.color, "stroke-width": s.width || 1.6,
           "stroke-dasharray": s.dash || null, "stroke-linejoin": "round", "stroke-linecap": "round",
           opacity: s.opacity === undefined ? 1 : s.opacity }, this.gs);
+        // 稀疏标记点：实测实心墨点 / 预测空心橙环，形状+颜色双重区分；只在大图开，小图不画保性能
+        if (s.dots && r.d) {
+          const step = Math.max(1, Math.ceil((b - a + 1) / s.dots));
+          for (let i = a; i <= b; i += step) {
+            const v = s.data[i];
+            if (v === null || v === undefined || !isFinite(v)) continue;
+            el("circle", { cx: X(i).toFixed(1), cy: YY(v).toFixed(1), r: s.dotR || 2.1,
+              fill: s.dotFill || "#fff", stroke: s.color, "stroke-width": s.dotW === undefined ? 1.5 : s.dotW,
+              "pointer-events": "none" }, this.gs);
+          }
+        }
       });
       // ---- 事件层：只更新几何（监听在构造时绑定一次）----
       const Hv = this._hover;
@@ -700,7 +711,9 @@
   }
   function legend(items) {
     return "<div class='legend'>" + items.map((it) =>
-      "<span>" + (it.dot ? "<i class='dot' style='background:" + it.color + "'></i>"
+      "<span>" + (it.ring ? "<i class='dot' style='background:#fff;border:2px solid " + it.color + ";box-sizing:border-box'></i>"
+        : it.dot ? "<i class='dot' style='background:" + it.color + "'></i>"
+        : it.dash ? "<i style='background:repeating-linear-gradient(90deg," + it.color + " 0 4px,transparent 4px 7px)'></i>"
         : "<i style='background:" + it.color + "'></i>") + it.label + "</span>").join("") + "</div>";
   }
   global.CH = { LineChart, Heatmap, Bars, Scatter, legend, fmt, TIP, tipWrite, niceTicks, el, h, teardown, teardownIn, placeTip };

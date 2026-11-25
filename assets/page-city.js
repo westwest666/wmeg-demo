@@ -43,10 +43,11 @@
 
     function buildSeries() {
       const s = [];
-      if (seriesOn.y) s.push({ label: "实测", color: "#1F2A36", width: 1.8, data: yArr() });
-      if (seriesOn.f) s.push({ label: "WMEG 预测", color: "#0E7C86", width: 1.8, data: fArr() });
+      if (seriesOn.y) s.push({ label: "实测", color: "#1F2A36", width: 1.7, dots: 34, dotR: 1.9, dotFill: "#1F2A36", dotW: 0, data: yArr() });
+      if (seriesOn.f) s.push({ label: "WMEG 预测", color: "#E8590C", width: 2.2, area: true, areaOpacity: .08,
+        dots: 34, dotR: 2.3, dotW: 1.6, data: fArr() });
       // 机理分支不参与输出，量级比预测小一个数量级 → 放到右轴，避免把主曲线压成贴地直线
-      if (seriesOn.m) s.push({ label: "机理分支（右轴）", color: "#E8590C", width: 1.2, dash: "5 3",
+      if (seriesOn.m) s.push({ label: "机理分支（右轴）", color: "#94A3B8", width: 1.2, dash: "5 3",
         axis: 2, opacity: .9, data: mArr() });
       return s;
     }
@@ -69,7 +70,7 @@
     // 卡片最小高度必须 ≥ 头部+图例+工具条(约 90px) + 图表最小高度，否则底部工具条会被 overflow 裁掉
     c1.card.style.minHeight = "330px";
     const legendBox = U.el("div", "", CH.legend([
-      { label: "实测", color: "#1F2A36" }, { label: "WMEG 预测", color: "#0E7C86", dot: true },
+      { label: "实测", color: "#1F2A36", dot: true }, { label: "WMEG 预测", color: "#E8590C", ring: true },
       { label: "训练/验证/测试", color: "#EDF3F7" }]));
     c1.bd.appendChild(legendBox);
     const box = U.el("div"); box.style.flex = "1"; box.style.minHeight = "170px"; box.style.position = "relative";
@@ -77,7 +78,7 @@
     setTimeout(() => {
       chart = new CH.LineChart(box, {
         dates: D.dates, series: buildSeries(), splitRanges: WMEG.splitRanges(D), brush: true, zoom: true,
-        padding: [12, 46, 26, 44], xTickN: 10, y2: true, y2Format: (v) => U.fmt(v, 0), y2color: "#E8590C",
+        padding: [12, 46, 26, 44], xTickN: 10, y2: true, y2Format: (v) => U.fmt(v, 0), y2color: "#94A3B8",
         onSelect: (a, b) => { view = { a, b }; syncRangeLabel(); if (typeof setActive === "function") setActive(null); }
       });
       chart.setRange(view.a, view.b);
