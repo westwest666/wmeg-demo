@@ -31,6 +31,40 @@
         yFormat: (v) => U.fmt(v, 1), hlines: [{ v: 1, color: "#C2185B", label: "R = 1" }] }), 30);
     }
 
+    /* 公式卡：与 pipeline/site_data.py::_rt_observed 逐项一致 */
+    const it = (s) => "<i>" + s + "</i>";
+    const sum = (hi, lo, cls) => "<span class='sum" + (cls ? " " + cls : "") + "'><span class='hi'>" + hi +
+      "</span><span class='sig'>Σ</span><span class='lo'>" + lo + "</span></span>";
+    const WIN = it("t′") + " = " + it("t") + " − " + it("τ") + " + 1";
+    const cF = U.card(main, "再生数的计算公式", "Cori et al. (2013) 滑动窗口估计 · 分子是窗口内新发病例，分母是窗口内的感染压力");
+    cF.bd.innerHTML =
+      "<div class='fxwrap'>" +
+        "<div class='fx' role='img' aria-label='Rt 等于窗口内日发病数之和，除以窗口内期望感染压力之和'>" +
+          "<span class='lhs'>R<sub>t</sub></span><span class='op'>=</span>" +
+          "<span class='frac'><span class='fxn'>" + sum(it("t"), WIN) + it("I<sub>t′</sub>") + "</span>" +
+          "<span class='fxd'>" + sum(it("t"), WIN) + sum("10", it("s") + " = 1", "s2") +
+          it("w<sub>s</sub>") + it("I<sub>t′−s</sub>") + "</span></span>" +
+        "</div>" +
+        "<div class='fxdef'>" +
+          "<div class='fxrow'><span class='sym'>" + it("I<sub>t</sub>") + "</span><span>第 " + it("t") +
+          " 天的日发病数（全省曲线为 11 市合计，城市曲线为该市）</span></div>" +
+          "<div class='fxrow'><span class='sym'>" + it("w<sub>s</sub>") + "</span><span>串行间隔权重：发病后第 " + it("s") +
+          " 天传给下一代的份额。Γ 分布（均值 2.9 天、标准差 1.3 天）按天离散，" + it("s") + " = 1 … 10</span></div>" +
+          "<div class='fxrow'><span class='sym'>" + it("τ") + "</span><span>滑动窗口长度，取 7 天（当天与前 6 天），逐日前移</span></div>" +
+          "<div class='fxrow'><span class='sym zh'>含义</span><span>窗口内每个病例平均传染的人数：" + it("R<sub>t</sub>") +
+          " &gt; 1 疫情在扩散，&lt; 1 在收缩</span></div>" +
+        "</div>" +
+      "</div>" +
+      "<div class='fxr0'><span class='lab'>R₀ 的口径</span>" +
+        "<span class='eq'>R<sub>0</sub><span class='op'>=</span><span class='max'>max<span class='lo'>流行季内</span></span>" +
+        "MA<sub>14</sub>(" + it("R<sub>t</sub>") + ")</span>" +
+        "<span class='desc'>对实测曲线的 " + it("R<sub>t</sub>") + " 再做 14 日移动平均，取流行季（7 月 → 次年 6 月）内的峰值；" +
+        "是峰值传播强度的上界估计，不是 t = 0 时刻的严格 R₀。</span></div>" +
+      "<div class='fxconv'><span class='k'>约定</span>" +
+        ["窗口分母（期望感染压力）&lt; 3 例的日期留空", "单日值封顶 12", "再做 7 日移动平均", "模型 Rt 与实测 Rt 用同一估计式"]
+          .map((s) => "<span class='c'>" + s + "</span>").join("") +
+      "</div>";
+
     const c2 = U.card(main, "11 市 Rt", "点选城市查看详情");
     const grid = U.el("div");
     grid.style.cssText = "display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px";
@@ -95,8 +129,8 @@
 
     const r3 = U.card(rail, "口径说明", "");
     r3.bd.appendChild(U.el("div", "tiny",
-      "Rt 采用 Cori et al. (2013) 的滑动窗口估计式：" +
-      "Rt = Στ天内 It / Στ天内 Σs ws·I(t−s)，串行间隔 w 取 Γ(2.9, 1.3)（均值 2.9 天），τ=7 天，再做 7 日平滑。" +
+      "Rt 采用 Cori et al. (2013) 的滑动窗口估计式，完整公式见主区「再生数的计算公式」卡片；" +
+      "串行间隔 w 取 Γ(2.9, 1.3)（均值 2.9 天），τ=7 天，再做 7 日平滑。" +
       "<br><br>「模型 Rt」= 对模型预测的逐日曲线做同一估计；「实测 Rt」= 对实测曲线做同一估计，二者用同一把尺子，可逐日对照。" +
       "<br><br>R0 取「流行季（7 月→次年 6 月）内 7 日平滑 Rt 再做 14 日平均后的峰值」（压掉尖峰、保留波浪强度），是峰值传播强度的上界估计，不是 t=0 时刻的严格 R0；报告量为 7 日平滑序列，增长段 Rt 会被平滑系统性压低，故宜作下界理解。" +
       "<br><br><b>小样本提示：</b>窗口分母（期望感染压力）小于 3 例的日期直接留空，不给出 Rt；城市卡片纵轴固定在 0–4，个别尖峰被截断，用于看趋势而非逐日精确值。" +
