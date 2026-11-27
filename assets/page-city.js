@@ -171,24 +171,6 @@
       U.toast("已导出 " + (rows.length - 1) + " 行");
     }
 
-    /* ---------- 下方两图 ---------- */
-    const c2 = U.card(main, "分步长误差（1-12 步）", "测试段逐城 RMSE / 相对误差", []);
-    c2.card.style.flex = "0 0 auto";
-    const g2 = U.el("div"); g2.style.cssText = "display:grid;grid-template-columns:1fr 1fr;gap:26px";
-    c2.bd.appendChild(g2);
-    const h1 = U.el("div"); h1.style.height = "148px";
-    const h2 = U.el("div"); h2.style.height = "148px";
-    g2.appendChild(h1); g2.appendChild(h2);
-    setTimeout(() => {
-      const full = city + "市";
-      const abs = (D.metrics.city_horizon || {})[full] || null;
-      const rel = (D.metrics.city_horizon_rel || {})[full] || null;
-      new CH.Bars(h1, { data: (abs || []).map((v, i) => ({ k: "H" + (i + 1), v: v })), labelW: 26,
-        fmt: (v) => U.fmt(v, 2), color: "#2F7FC1", height: 148 });
-      new CH.Bars(h2, { data: (rel || []).map((v, i) => ({ k: "H" + (i + 1), v: v })), labelW: 26,
-        fmt: (v) => U.pct(v, 0), color: "#0E7C86", height: 148 });
-    }, 30);
-
     /* ---------- 月度分布（放在右栏，省出主区竖向空间） ---------- */
     function buildMonthly(host) {
       const mon = {};
@@ -247,11 +229,11 @@
       host.appendChild(xlab);
     }
 
-    /* ---------- 右栏（窄栏友好：两行式指标，不再用宽表格） ---------- */
-    const r1 = U.card(rail, city + "市 · 分段指标", "RMSE · nRMSE · PCC");
+    /* ---------- 右栏：再生数/峰值置顶（对外先看疫情强度），模型精度指标置底 ---------- */
     const r2 = U.card(rail, "峰值与再生数", "");
     const r3 = U.card(rail, "月度分布", "日均病例，点击柱切换主图区间");
     const r4 = U.card(rail, "数据覆盖", "");
+    const r1 = U.card(rail, city + "市 · 模型指标", "RMSE · nRMSE · PCC（内部精度，供复核）");
 
     function statLine(s) {
       if (!s || !s.n) return "—";
