@@ -352,8 +352,15 @@
     playBtn.onclick = () => setPlaying(!playing);
     playBtns.push(playBtn);
     tl.appendChild(playBtn);
-    const dayTxt = U.el("div", "day", "");
-    dayTxt.style.fontSize = "17px";
+    const dayTxt = document.createElement("input");
+    dayTxt.type = "date"; dayTxt.className = "daypick";
+    dayTxt.min = D.dates[0]; dayTxt.max = D.dates[n - 1]; dayTxt.value = D.dates[day];
+    dayTxt.title = "指定跳转到某一天（也可拖时间轴或播放）";
+    dayTxt.onchange = () => {
+      const i = D.dates.indexOf(dayTxt.value);
+      if (i >= 0) { day = i; range.value = i; setPlaying(false); render(); }
+      else dayTxt.value = D.dates[day];
+    };
     const range = document.createElement("input"); range.type = "range";
     range.min = 0; range.max = n - 1; range.value = day;
     const tot = U.el("div", "tot", "全省 实测 <b></b> · 预测 <b></b>");
@@ -426,7 +433,8 @@
       clearTimeout(liveT);
       liveT = setTimeout(() => { wrap.classList.remove("live"); lastRender = -1e9; }, 300);
 
-      dayTxt.textContent = D.dates[day];
+      if (dayTxt.value !== D.dates[day]) dayTxt.value = D.dates[day];
+      if (+range.value !== day) range.value = day;
       let sumO = 0, sumP = 0;
       // 计数类用对数刻度（低值日也能看出差异），偏差/Rt 用线性
       const scale = (v) => {

@@ -238,6 +238,9 @@ button{font-family:inherit}
 /* ---------- 时间轴 ---------- */
 .timeline{display:flex;align-items:center;gap:12px;padding:8px 14px 10px}
 .timeline .day{font-size:14px;font-weight:800;font-variant-numeric:tabular-nums;min-width:96px}
+.timeline .daypick{font-size:15px;font-weight:800;font-variant-numeric:tabular-nums;background:#fff;border:1px solid var(--line);
+  border-radius:7px;padding:4px 8px;color:var(--tx);font-family:inherit;outline:none;min-width:138px}
+.timeline .daypick:focus{border-color:var(--accent)}
 .timeline .tot{font-size:11px;color:var(--tx3);min-width:120px;text-align:right}
 input[type=range]{-webkit-appearance:none;appearance:none;flex:1;height:4px;border-radius:3px;background:#D9E3EB;outline:none}
 input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:15px;height:15px;border-radius:50%;
