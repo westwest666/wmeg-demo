@@ -39,7 +39,7 @@
   window.WMEG.register("map", function (main, rail, ctx) {
     const D = ctx.D, G = D.map, U2 = U;
     const n = D.dates.length;
-    let metric = "pred", showFlow = true, showAdj = true, showLab = true, showVal = true;
+    let metric = "pred", showFlow = true, showAdj = true, showLab = true, showVal = true, showMet = true;
     let day = (function () {
       // 默认停在测试段里第一个「有预测值」的日期（分段起点前 20 天因窗口不足无预测）
       let t = D.dates.indexOf(D.meta.test_start);
@@ -198,7 +198,11 @@
       t1.textContent = k;
       const t2 = e("text", Object.assign({ x, y, "text-anchor": "middle", "font-weight": 800, fill: "#9A3412",
         "font-variant-numeric": "tabular-nums" }, halo), g);
-      labels[k] = [t1, t2, null];
+      // 第三行：气象三芯片 T/H/R，与面填色（病例）同屏双层编码
+      const t3 = e("text", Object.assign({ x, y, "text-anchor": "middle", "font-weight": 800,
+        "font-variant-numeric": "tabular-nums" }, halo), g);
+      const sp = [0, 1, 2].map(() => { const s = document.createElementNS(NS, "tspan"); t3.appendChild(s); return s; });
+      labels[k] = [t1, t2, t3, sp];
     });
     /* 悬停城市：一张完整的当日信息卡，而不是把更多字挤进地图标注。
        同一天同一城市只拼一次 HTML，鼠标移动时只挪位置 */
@@ -269,7 +273,7 @@
     let lastFs = -1;
     function layoutLabels() {
       if (!showLab) return;       // 整层隐藏时留到重新显示再排
-      const fs = labFs, vs = fs * 0.85;
+      const fs = labFs, vs = fs * 0.85, ms = fs * 0.60;
       if (fs !== lastFs) {
         lastFs = fs;
         Object.keys(labels).forEach((k) => {
@@ -277,19 +281,26 @@
           labels[k][1].setAttribute("font-size", vs);
           labels[k][0].setAttribute("stroke-width", (fs * 0.16).toFixed(2));
           labels[k][1].setAttribute("stroke-width", (vs * 0.16).toFixed(2));
+          if (labels[k][2]) {
+            labels[k][2].setAttribute("font-size", ms);
+            labels[k][2].setAttribute("stroke-width", (ms * 0.16).toFixed(2));
+          }
         });
       }
       Object.keys(labels).forEach((k) => {
         const c = G.cents[k];
         if (!c) return;
-        const t1 = labels[k][0], t2 = labels[k][1];
+        const t1 = labels[k][0], t2 = labels[k][1], t3 = labels[k][2];
         const showV = showVal && t2.style.display !== "none";
+        const showM = showMet && t3 && t3.style.display !== "none";
         const padY = fs * 0.20;
-        const h = fs + (showV ? vs * 1.25 : 0) + padY * 2;
+        const h = fs + (showV ? vs * 1.25 : 0) + (showM ? ms * 1.35 : 0) + padY * 2;
         const cx = c[0], cy = c[1];
-        setA(t1, "x", cx); setA(t2, "x", cx);
-        setA(t1, "y", showV ? cy - vs * 0.28 : cy + fs * 0.35);
-        setA(t2, "y", cy + h / 2 - padY - vs * 0.12);
+        const y1 = (showV || showM) ? cy - h / 2 + padY + fs * 0.82 : cy + fs * 0.35;
+        const y2 = y1 + vs * 1.22;
+        const y3 = (showV ? y2 : y1) + ms * 1.3;
+        setA(t1, "x", cx); setA(t2, "x", cx); if (t3) setA(t3, "x", cx);
+        setA(t1, "y", y1); setA(t2, "y", y2); if (t3) setA(t3, "y", y3);
       });
     }
     const ro = new ResizeObserver(() => syncLabelSize());
@@ -485,6 +496,23 @@
           // 深色底（暴雨/寒潮/高风险）：标签反白 + 暗光晕，保证对比度
           const hl = deep ? "rgba(23,32,42,.45)" : (c === sel ? "rgba(223,241,240,.95)" : "rgba(255,249,240,.92)");
           setA(lab[0], "stroke", hl); setA(lab[1], "stroke", hl);
+          const t3 = lab[2], sp = lab[3];
+          if (t3) {
+            const dispM = showMet ? "" : "none";
+            if (t3.style.display !== dispM) t3.style.display = dispM;
+            if (showMet) {
+              const vt = extVal("t", day, ci), vh = extVal("h", day, ci), vr = extVal("r", day, ci);
+              const txts = ["T" + sgn(vt, 1), " H" + sgn(vh, 1), " R" + (vr === null ? "—" : U.fmt(vr, 0))];
+              const cols = deep ? ["#FFE1B8", "#D8F9F8", "#CFE4FF"] :
+                [vt === null ? "#8496A6" : vt > 0 ? "#B4232A" : "#1D4ED8",
+                  vh === null ? "#8496A6" : vh > 0 ? "#0E7C86" : "#B45309", "#1D4ED8"];
+              for (let i2 = 0; i2 < 3; i2++) {
+                if (sp[i2].textContent !== txts[i2]) sp[i2].textContent = txts[i2];
+                setA(sp[i2], "fill", cols[i2]);
+              }
+              setA(t3, "stroke", hl);
+            }
+          }
         }
         const yv = D.series.y[day] ? D.series.y[day][ci] : null, fv = D.series.f[day] ? D.series.f[day][ci] : null;
         if (yv !== null) sumO += yv; if (fv !== null) sumP += fv;
@@ -716,6 +744,7 @@
         ["迁徙流", () => showFlow, (v) => showFlow = v],
         ["城市标签", () => showLab, (v) => showLab = v],
         ["标签数值", () => showVal, (v) => showVal = v],
+        ["气象标注", () => showMet, (v) => showMet = v],
       ];
       ly.forEach(([lab, get, set]) => {
         row(lab, get(), (e) => { set(!get()); e.currentTarget.classList.toggle("on", get()); render(); applyLayers(); });

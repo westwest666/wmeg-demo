@@ -454,4 +454,9 @@ table.mtable tbody tr{cursor:pointer}
 table.mtable tbody tr:hover{background:#FBF3E8}
 table.mtable tbody tr.on{background:#DFF1F0}
 table.mtable tbody tr.on td:first-child{color:#0B5A62}
-@media (max-width:1280px){.mapgrid{grid-template-columns:minmax(0,1fr)}.mapside{display:none}}
+@media (max-width:1500px){.mapgrid{grid-template-columns:196px minmax(0,1fr) 216px;gap:8px}
+  .minirow svg{flex-basis:78px;width:78px}
+  .miniinfo{font-size:10px}
+  table.mtable{font-size:10px}
+  table.mtable td{padding:3px 3px}}
+@media (max-width:1024px){.mapgrid{grid-template-columns:minmax(0,1fr)}.mapside{display:none}}
