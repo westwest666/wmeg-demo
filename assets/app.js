@@ -24,6 +24,7 @@
     { id: "model", label: "模型诊断", icon: "M4 19V5m0 14h16M8 15l3-5 3 3 4-7" },
     { id: "data", label: "数据与滑窗", icon: "M4 6c0-1.7 3.6-3 8-3s8 1.3 8 3-3.6 3-8 3-8-1.3-8-3zm0 0v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6" },
     { id: "mig", label: "迁徙流", icon: "M4 12h11m0 0l-4-4m4 4l-4 4M19 5v14" },
+    { id: "warn", label: "传播预警", icon: "M12 3l8 4v5c0 5-3.4 8.4-8 9-4.6-.6-8-4-8-9V7zm0 5v4m0 3h.01" },
     { id: "manual", label: "使用说明", icon: "M4 5a2 2 0 012-2h12v18H6a2 2 0 01-2-2zm3 3h8M7 12h8M7 16h5" }
   ];
   const SUB = {
@@ -34,6 +35,7 @@
     model: "误差结构 · 观测-预测对照",
     data: "数据集区间 · 721 切分 · 长度扫描",
     mig: "数据审计 · 是否进入模型",
+    warn: "导师四问雏形 · 气象/迁移归因 · 下一个热点回溯",
     manual: "全部用法与口径"
   };
 
@@ -206,7 +208,7 @@
       "<div class='navlist' id='navlist'></div>" +
       "<div id='consoleWrap'></div>" +
       "<div class='tail'><button class='collapse' id='collapseBtn' title='收起/展开侧栏'>‹</button>" +
-      "<span class='ver' id='verTxt'>v7 · SPA · 按 1-8 切页</span></div>" +
+      "<span class='ver' id='verTxt'>v7 · SPA · 按 1-9 切页</span></div>" +
       "</aside>" +
       "<section class='page' id='page'><div class='main' id='main'></div><div class='rail' id='rail'></div></section>" +
       "</div>";
