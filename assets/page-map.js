@@ -39,7 +39,7 @@
   window.WMEG.register("map", function (main, rail, ctx) {
     const D = ctx.D, G = D.map, U2 = U;
     const n = D.dates.length;
-    let metric = "pred", showFlow = true, showAdj = true, showLab = true, showVal = true, showMet = true;
+    let metric = "pred", showFlow = true, showAdj = true, showLab = true, showVal = true, showMet = false;
     let day = (function () {
       // 默认停在测试段里第一个「有预测值」的日期（分段起点前 20 天因窗口不足无预测）
       let t = D.dates.indexOf(D.meta.test_start);
@@ -98,7 +98,7 @@
     const sideL = U.el("div", "mapside");
     const wrap = U.el("div", "mapwrap");
     wrap.style.minHeight = "420px";
-    const sideR = U.el("div", "mapside");
+    const sideR = U.el("div", "mapside mapside-r");
     grid.appendChild(sideL); grid.appendChild(wrap); grid.appendChild(sideR);
     card.bd.appendChild(grid);
     const NS = "http://www.w3.org/2000/svg";
@@ -673,13 +673,11 @@
         tbody.appendChild(tr);
         tableRows[c] = Array.from(tr.querySelectorAll("td")).slice(1);
       });
-      tb.appendChild(tbody); tc.appendChild(tb); sideR.appendChild(tc);
-      const lg = U.el("div");
-      lg.style.cssText = "background:#fff;border:1px solid var(--line);border-radius:10px;padding:8px";
-      lg.innerHTML = "<div style='font-weight:800;font-size:12px;color:#7C2D12;margin-bottom:4px'>Q1 · 气象影响方向</div>" + q1Chips() +
-        "<div style='font-size:10.5px;color:#8496A6;margin-top:6px;line-height:1.5'>面板回归 n=" + EXT.q1_n + " · R²=" + EXT.q1_r2 +
-        "；T/H 为对同期气候态距平，降水为当日实况。点击小图或表格行选中城市。</div>";
-      sideR.appendChild(lg);
+      tb.appendChild(tbody); tc.appendChild(tb);
+      const hint = U.el("div");
+      hint.style.cssText = "font-size:10.5px;color:#8496A6;margin-top:6px;line-height:1.5";
+      hint.textContent = "点击行选中城市；T/H 为对同期气候态距平，雨为当日实况。";
+      tc.appendChild(hint); sideR.appendChild(tc);
       const rc = U.el("div");
       rc.style.cssText = "background:#fff;border:1px solid var(--line);border-radius:10px;padding:8px";
       rc.innerHTML = "<div style='font-weight:800;font-size:12px;color:#7C2D12;margin-bottom:6px'>当日起升风险 TOP3</div>" +
