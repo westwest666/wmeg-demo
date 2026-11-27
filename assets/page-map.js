@@ -10,13 +10,14 @@
     return "rgb(" + a.map((v, k) => Math.round(v + (b[k] - v) * f)).join(",") + ")";
   }
   window.WMEG.heatColor = heatColor;
-  const MET = { pred: "预测", obs: "实测", rt: "Rt", t: "温度距平", h: "湿度距平", p: "迁徙压力", risk: "起升风险" };
+  const MET = { pred: "预测", obs: "实测", rt: "Rt", t: "温度距平", h: "湿度距平", r: "降水量", p: "迁徙压力", risk: "起升风险" };
   const EXT = window.WMEG_MAP_EXT || null;
   function extVal(k, i, ci) { return (EXT && EXT[k] && EXT[k][i]) ? EXT[k][i][ci] : null; }
   function sgn(v, d) { return (v === null || v === undefined || !isFinite(v)) ? "—" : (v > 0 ? "+" : "") + window.APP.U.fmt(v, d); }
   // 双向色阶：中点暖纸色；温度/风险 冷蓝→暖红，湿度 干橙→湿青
   const RAMP_T = [[37, 99, 176], [120, 170, 220], [247, 244, 236], [240, 138, 93], [178, 34, 34]];
   const RAMP_H = [[176, 106, 40], [222, 178, 120], [247, 244, 236], [120, 190, 190], [14, 124, 134]];
+  const RAMP_R = [[247, 244, 236], [199, 224, 240], [126, 176, 222], [47, 111, 181], [16, 62, 122]];
   function rampColor(stops, t) {
     t = Math.max(0, Math.min(0.9999, t));
     const x = t * (stops.length - 1), i = Math.floor(x), f = x - i;
@@ -92,9 +93,14 @@
     document.addEventListener("keydown", onKeyEsc);
     card.card.style.flex = "1";
     card.card.style.minHeight = "0";
+    // 图版式三栏：左=三要素同步小图，中=主地图，右=逐城三要素表+Q1方向；消除主图两侧空白
+    const grid = U.el("div", "mapgrid");
+    const sideL = U.el("div", "mapside");
     const wrap = U.el("div", "mapwrap");
     wrap.style.minHeight = "420px";
-    card.bd.appendChild(wrap);
+    const sideR = U.el("div", "mapside");
+    grid.appendChild(sideL); grid.appendChild(wrap); grid.appendChild(sideR);
+    card.bd.appendChild(grid);
     const NS = "http://www.w3.org/2000/svg";
     // 地图拆成三层独立 SVG：底图（接壤边 + 多边形）/ 迁徙流 / 标签。
     // 流动线动画只重绘自己这一层；播放时多边形填色也不会带着标签和流动线一起重画。
@@ -114,6 +120,16 @@
       for (const k in attrs) x.setAttribute(k, attrs[k]);
       (par || gZoom).appendChild(x); return x;
     }
+    const gDeco = e("g", {});
+    // 制图装饰：经纬网 + 邻省注记，让主图两侧的地理空白变成有意义的图面
+    for (let gx = 200; gx <= 800; gx += 150)
+      e("line", { x1: gx, y1: 80, x2: gx, y2: 1720, stroke: "#E3D5C0", "stroke-width": 1, "stroke-dasharray": "2 7", opacity: .9 }, gDeco);
+    for (let gy = 200; gy <= 1600; gy += 200)
+      e("line", { x1: 140, y1: gy, x2: 860, y2: gy, stroke: "#E3D5C0", "stroke-width": 1, "stroke-dasharray": "2 7", opacity: .9 }, gDeco);
+    [["内蒙古", 520, 70], ["河北", 945, 820], ["河南", 640, 1755], ["陕西", 62, 900]].forEach(([t, x, y]) => {
+      const tx = e("text", { x, y, "text-anchor": "middle", "font-size": 44, fill: "#CFC4B2", "font-weight": 700, style: "letter-spacing:6px" }, gDeco);
+      tx.textContent = t;
+    });
     const gAdj = e("g", {});
     const gPoly = e("g", {});
     const gFlow = e("g", {}, L1.gz);
@@ -315,6 +331,10 @@
       tools.appendChild(b);
     });
     wrap.appendChild(tools);
+    const compass = U.el("div");
+    compass.style.cssText = "position:absolute;top:10px;right:14px;text-align:center;color:#8496A6;font-size:12px;font-weight:800;line-height:1.15;pointer-events:none";
+    compass.innerHTML = "▲<br>N";
+    wrap.appendChild(compass);
     const scalebar = U.el("div", "scalebar", "");
     scalebar.innerHTML = "<div class='sb-t'></div><div class='sb-bar'></div>" +
       "<div class='sb-l'><span>0</span><span class='sb-max'></span></div>";
@@ -384,7 +404,7 @@
       if (metric === "pred") return D.series.f[i] ? D.series.f[i][ci] : null;
       if (metric === "obs") return D.series.y[i] ? D.series.y[i][ci] : null;
       if (metric === "rt") return D.rt.v[i] ? D.rt.v[i][ci] : null;
-      if (metric === "t" || metric === "h" || metric === "p" || metric === "risk") return extVal(metric, i, ci);
+      if (metric === "t" || metric === "h" || metric === "r" || metric === "p" || metric === "risk") return extVal(metric, i, ci);
       return null;
     }
     function maxima() {
@@ -414,6 +434,7 @@
         if (metric === "rt") return Math.min(1, Math.abs(v) / 3.0);
         if (metric === "t" || metric === "h" || metric === "risk") return Math.min(1, Math.abs(v) / Math.max(0.5, MX));
         if (metric === "p") return Math.min(1, Math.abs(v) / Math.max(1e-6, MX));
+        if (metric === "r") return Math.sqrt(Math.max(0, Math.min(1, v / Math.max(1e-6, MX))));
         return Math.min(1, Math.log1p(Math.abs(v)) / Math.log1p(Math.max(1, MX)));
       };
       const selChanged = sel !== lastSel;
@@ -422,13 +443,16 @@
         const t = scale(v);
         const fillC = (v === null || !isFinite(v)) ? "#F1EAE0" :
           (metric === "t" || metric === "risk") ? rampColor(RAMP_T, divT(v, MX)) :
-          metric === "h" ? rampColor(RAMP_H, divT(v, MX)) : heatColor(t);
+          metric === "h" ? rampColor(RAMP_H, divT(v, MX)) :
+          metric === "r" ? rampColor(RAMP_R, t) : heatColor(t);
         if (polys[c]) {
           setA(polys[c], "fill", fillC);
           const op = (sel && sel !== c) ? "0.96" : "1";
           if (polys[c].style.opacity !== op) polys[c].style.opacity = op;
           if (selChanged) setA(polys[c], "stroke", c === sel ? "#0E7C86" : "#FFFFFF");
         }
+        const mag = (v === null || !isFinite(v)) ? 0 : Math.abs(v) / Math.max(0.5, MX);
+        const deep = mag > 0.62 && metric !== "pred" && metric !== "obs" && metric !== "p";
         const lab = labels[c];
         if (lab) {
           // 第二行带口径与单位：计数类「例」、Rt 前缀、偏差显式正负号
@@ -436,18 +460,22 @@
             metric === "rt" ? "Rt " + U.fmt(v, 2) :
             metric === "t" ? sgn(v, 1) + "°C" :
             metric === "h" ? sgn(v, 1) + " g/m³" :
+            metric === "r" ? U.fmt(v, 1) + " mm" :
             metric === "p" ? U.fmt(v, 2) :
             metric === "risk" ? sgn(v, 2) :
             U.fmt(v, 0) + " 例";
           if (lab[1].textContent !== txt) lab[1].textContent = txt;
           const disp = showVal ? "" : "none";
           if (lab[1].style.display !== disp) lab[1].style.display = disp;
-          setA(lab[0], "fill", c === sel ? "#0B5A62" : "#7C2D12");
-          setA(lab[1], "fill", metric === "rt" ? "#8E44C7" :
+          setA(lab[0], "fill", c === sel ? (deep ? "#DFF1F0" : "#0B5A62") : (deep ? "#FFF6EA" : "#7C2D12"));
+          setA(lab[1], "fill", deep ? "#FFFFFF" :
+            metric === "rt" ? "#8E44C7" :
             (metric === "t" || metric === "risk") ? (v > 0 ? "#B4232A" : "#1D4ED8") :
-            metric === "h" ? (v > 0 ? "#0E7C86" : "#B45309") : "#9A3412");
+            metric === "h" ? (v > 0 ? "#0E7C86" : "#B45309") :
+            metric === "r" ? "#1D4ED8" : "#9A3412");
           // 选中城市：光晕换淡青，配合青色城市名形成选中态（不再靠矩形描边）
-          const hl = c === sel ? "rgba(223,241,240,.95)" : "rgba(255,249,240,.92)";
+          // 深色底（暴雨/寒潮/高风险）：标签反白 + 暗光晕，保证对比度
+          const hl = deep ? "rgba(23,32,42,.45)" : (c === sel ? "rgba(223,241,240,.95)" : "rgba(255,249,240,.92)");
           setA(lab[0], "stroke", hl); setA(lab[1], "stroke", hl);
         }
         const yv = D.series.y[day] ? D.series.y[day][ci] : null, fv = D.series.f[day] ? D.series.f[day][ci] : null;
@@ -458,6 +486,7 @@
       totB[1].textContent = U.fmt(sumP, 0);
       layoutLabels();
       updateRail();
+      updatePanels();
     }
     /* 图层显隐、色阶文字：与「当前是哪一天」无关，只在开关切换时更新 */
     function applyLayers() {
@@ -465,9 +494,9 @@
       gAdj.style.display = showAdj ? "" : "none";
       L2.svg.style.display = showLab ? "" : "none";
       sbT.textContent = MET[metric] + " · 色阶";
-      const dec = (metric === "rt" || metric === "p" || metric === "risk") ? 2 : (metric === "t" || metric === "h") ? 1 : 0;
+      const dec = (metric === "rt" || metric === "p" || metric === "risk") ? 2 : (metric === "t" || metric === "h" || metric === "r") ? 1 : 0;
       const diverging = (metric === "t" || metric === "h" || metric === "risk");
-      const stops = (metric === "t" || metric === "risk") ? RAMP_T : metric === "h" ? RAMP_H :
+      const stops = (metric === "t" || metric === "risk") ? RAMP_T : metric === "h" ? RAMP_H : metric === "r" ? RAMP_R :
         [[247, 251, 253], [254, 236, 210], [253, 186, 116], [240, 113, 71], [190, 40, 40], [120, 20, 30]];
       const sbBar = scalebar.querySelector(".sb-bar");
       sbBar.style.background = "linear-gradient(90deg," + stops.map((s, i) =>
@@ -550,6 +579,119 @@
       }
     }
 
+    /* ---------- 卡内两侧：三要素同步小图（左）+ 逐城三要素表与Q1方向（右） ---------- */
+    const MINI_VB = "140 60 720 1700";
+    const MXE = { t: 1, h: 1, r: 1 };
+    if (EXT) ["t", "h", "r"].forEach((k) => {
+      let mx = 1;
+      EXT[k].forEach((row) => row.forEach((v) => { if (v !== null && isFinite(v)) mx = Math.max(mx, Math.abs(v)); }));
+      MXE[k] = mx;
+    });
+    function elemColor(k, v) {
+      if (v === null || !isFinite(v)) return "#F1EAE0";
+      if (k === "r") return rampColor(RAMP_R, Math.sqrt(Math.max(0, Math.min(1, v / MXE.r))));
+      return rampColor(k === "t" ? RAMP_T : RAMP_H, 0.5 + 0.5 * Math.max(-1, Math.min(1, v / MXE[k])));
+    }
+    const miniPolys = { t: {}, h: {}, r: {} }, miniInfo = {}, tableRows = {};
+    let riskRows = [];
+    function buildPanels() {
+      if (!EXT) { sideL.style.display = "none"; sideR.style.display = "none"; return; }
+      const TIT = { t: ["温度距平 T", "°C"], h: ["湿度距平 H", "g/m³"], r: ["降水量", "mm"] };
+      ["t", "h", "r"].forEach((k) => {
+        const row = U.el("div", "minirow");
+        const sv = document.createElementNS(NS, "svg"); sv.setAttribute("viewBox", MINI_VB);
+        const gg = document.createElementNS(NS, "g"); sv.appendChild(gg);
+        Object.keys(G.polys).forEach((c) => {
+          const p = document.createElementNS(NS, "path");
+          p.setAttribute("d", G.polys[c]); p.setAttribute("stroke", "#FFFFFF"); p.setAttribute("stroke-width", "2");
+          p.style.cursor = "pointer";
+          p.addEventListener("click", () => { sel = c; render(); });
+          gg.appendChild(p); miniPolys[k][c] = p;
+        });
+        row.appendChild(sv);
+        const info = U.el("div", "miniinfo");
+        const ramp = k === "r" ? RAMP_R : k === "t" ? RAMP_T : RAMP_H;
+        info.innerHTML = "<div style='font-weight:800;font-size:12px;color:#7C2D12'>" + TIT[k][0] +
+          " <span style='color:#8496A6;font-weight:600'>" + TIT[k][1] + "</span></div>" +
+          "<div class='kv'><span>全省均值</span><span></span></div>" +
+          "<div class='kv'><span>最高城市</span><span></span></div>" +
+          "<div style='flex:1'></div>" +
+          "<div style='height:8px;border-radius:4px;background:linear-gradient(90deg," +
+          ramp.map((s, i, a) => "rgb(" + s.join(",") + ") " + (i / (a.length - 1) * 100).toFixed(0) + "%").join(",") + ")'></div>" +
+          "<div style='display:flex;justify-content:space-between;color:#8496A6;font-size:10px'><span>" +
+          (k === "r" ? "0" : "−" + U.fmt(MXE[k], 1)) + "</span><span>" + (k === "r" ? "" : "0") + "</span><span>" +
+          (k === "r" ? "" : "+") + U.fmt(MXE[k], 1) + "</span></div>";
+        row.appendChild(info); sideL.appendChild(row);
+        miniInfo[k] = Array.from(info.querySelectorAll(".kv > span:last-child"));
+      });
+      const tc = U.el("div");
+      tc.style.cssText = "background:#fff;border:1px solid var(--line);border-radius:10px;padding:8px";
+      tc.innerHTML = "<div style='font-weight:800;font-size:12px;color:#7C2D12;margin-bottom:6px'>11 城 · 当日三要素</div>";
+      const tb = document.createElement("table"); tb.className = "mtable";
+      tb.innerHTML = "<thead><tr><th style='text-align:left'>城市</th><th>T °C</th><th>H g/m³</th><th>雨 mm</th></tr></thead>";
+      const tbody = document.createElement("tbody");
+      D.cities.forEach((c) => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = "<td>" + c + "</td><td></td><td></td><td></td>";
+        tr.onclick = () => { sel = c; render(); };
+        tbody.appendChild(tr);
+        tableRows[c] = Array.from(tr.querySelectorAll("td")).slice(1);
+      });
+      tb.appendChild(tbody); tc.appendChild(tb); sideR.appendChild(tc);
+      const lg = U.el("div");
+      lg.style.cssText = "background:#fff;border:1px solid var(--line);border-radius:10px;padding:8px";
+      lg.innerHTML = "<div style='font-weight:800;font-size:12px;color:#7C2D12;margin-bottom:4px'>Q1 · 气象影响方向</div>" + q1Chips() +
+        "<div style='font-size:10.5px;color:#8496A6;margin-top:6px;line-height:1.5'>面板回归 n=" + EXT.q1_n + " · R²=" + EXT.q1_r2 +
+        "；T/H 为对同期气候态距平，降水为当日实况。点击小图或表格行选中城市。</div>";
+      sideR.appendChild(lg);
+      const rc = U.el("div");
+      rc.style.cssText = "background:#fff;border:1px solid var(--line);border-radius:10px;padding:8px";
+      rc.innerHTML = "<div style='font-weight:800;font-size:12px;color:#7C2D12;margin-bottom:6px'>当日起升风险 TOP3</div>" +
+        [0, 1, 2].map(() => "<div class='kv'><span></span><span></span></div>").join("") +
+        "<div style='font-size:10.5px;color:#8496A6;margin-top:6px;line-height:1.5'>融合分=z(近7日强度/季阈值)+0.25·z(源加权迁徙份额)；仅作空间风险参考。</div>";
+      sideR.appendChild(rc);
+      riskRows = Array.from(rc.querySelectorAll(".kv")).map((d) => [d.querySelector("span:first-child"), d.querySelector("span:last-child")]);
+    }
+    function updatePanels() {
+      if (!EXT) return;
+      ["t", "h", "r"].forEach((k) => {
+        let sum = 0, n = 0, topC = null, topV = -1e9;
+        D.cities.forEach((c, ci) => {
+          const v = extVal(k, day, ci);
+          const p = miniPolys[k][c]; if (p) setA(p, "fill", elemColor(k, v));
+          if (v !== null && isFinite(v)) { sum += v; n++; if (v > topV) { topV = v; topC = c; } }
+        });
+        const a = miniInfo[k], mean = n ? sum / n : null;
+        const s1 = mean === null ? "—" : (k === "r" ? U.fmt(mean, 1) : (mean > 0 ? "+" : "") + U.fmt(mean, 1));
+        if (a[0].textContent !== s1) a[0].textContent = s1;
+        const s2 = topC ? topC + " " + (k === "r" ? U.fmt(topV, 1) : (topV > 0 ? "+" : "") + U.fmt(topV, 1)) : "—";
+        if (a[1].textContent !== s2) a[1].textContent = s2;
+      });
+      D.cities.forEach((c, ci) => {
+        const cells = tableRows[c]; if (!cells) return;
+        const vt = extVal("t", day, ci), vh = extVal("h", day, ci), vr = extVal("r", day, ci);
+        const st = [sgn(vt, 1), sgn(vh, 1), vr === null ? "—" : U.fmt(vr, 1)];
+        const col = [vt === null ? "#8496A6" : vt > 0 ? "#B4232A" : "#1D4ED8",
+          vh === null ? "#8496A6" : vh > 0 ? "#0E7C86" : "#B45309", "#1D4ED8"];
+        for (let i = 0; i < 3; i++) {
+          if (cells[i].textContent !== st[i]) cells[i].textContent = st[i];
+          cells[i].style.color = col[i]; cells[i].style.fontWeight = "700"; cells[i].style.textAlign = "right";
+        }
+        const tr = cells[0].parentNode, on = c === sel;
+        if (tr.classList.contains("on") !== on) tr.classList.toggle("on", on);
+      });
+      const rk = D.cities.map((c, i) => ({ c, v: extVal("risk", day, i) }))
+        .filter((z) => z.v !== null && isFinite(z.v)).sort((a, b) => b.v - a.v).slice(0, 3);
+      riskRows.forEach((pair, i) => {
+        const z = rk[i];
+        const s1 = z ? (i + 1) + " · " + z.c : "—", s2 = z ? sgn(z.v, 2) : "";
+        if (pair[0].textContent !== s1) pair[0].textContent = s1;
+        if (pair[1].textContent !== s2) pair[1].textContent = s2;
+        pair[1].style.color = z && z.v > 0 ? "#B4232A" : "#1D4ED8";
+        pair[1].style.fontWeight = "800";
+      });
+    }
+
     /* ---------- 左控制台 ---------- */
     if (ctx.console) {
       const cw = ctx.console;
@@ -584,11 +726,12 @@
       cw.appendChild(U.el("h4", "", "着色 · 疫情"));
       addColors([["pred", "预测值"], ["obs", "实测值"], ["rt", "有效再生数 Rt"]]);
       cw.appendChild(U.el("h4", "", "着色 · 气象 Q1"));
-      addColors([["t", "温度距平 T"], ["h", "湿度距平 H"]]);
+      addColors([["t", "温度距平 T"], ["h", "湿度距平 H"], ["r", "降水量"]]);
       cw.appendChild(U.el("h4", "", "着色 · 迁徙与风险"));
       addColors([["p", "迁徙输入压力"], ["risk", "起升风险"]]);
     }
     buildRail();
+    buildPanels();
     syncLabelSize();
     applyLayers();
     render();
