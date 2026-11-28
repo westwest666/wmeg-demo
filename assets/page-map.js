@@ -93,11 +93,12 @@
     document.addEventListener("keydown", onKeyEsc);
     card.card.style.flex = "1";
     card.card.style.minHeight = "0";
+    card.card.classList.add("mapcard");
     // 图版式三栏：左=三要素同步小图，中=主地图，右=逐城三要素表+Q1方向；消除主图两侧空白
     const grid = U.el("div", "mapgrid");
     const sideL = U.el("div", "mapside");
     const wrap = U.el("div", "mapwrap");
-    wrap.style.minHeight = "420px";
+    wrap.style.minHeight = "300px";
     const sideR = U.el("div", "mapside mapside-r");
     grid.appendChild(sideL); grid.appendChild(wrap); grid.appendChild(sideR);
     card.bd.appendChild(grid);
@@ -375,7 +376,7 @@
     const range = document.createElement("input"); range.type = "range";
     range.min = 0; range.max = n - 1; range.value = day;
     const tot = U.el("div", "tot", "全省 实测 <b></b> · 预测 <b></b>");
-    tot.style.fontSize = "13px";
+    tot.style.fontSize = "12px";
     const totB = tot.querySelectorAll("b");
     tl.appendChild(dayTxt); tl.appendChild(range); tl.appendChild(tot);
     card.bd.appendChild(tl);
